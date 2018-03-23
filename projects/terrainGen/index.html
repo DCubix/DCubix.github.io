@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>GLFX</title>
+	</head>
+	<body>
+		<style type="text/css">
+		* { margin: 0; padding: 0; }
+		body, html {
+			width: 100%;
+			height: 100%;
+		}
+		.glfx {
+			position: absolute;
+			width: 100%;
+			height: 100%;
+		}
+		.floating-panel {
+			display: flex;
+			flex-direction: column;
+			position: absolute;
+			z-index: 10;
+			left: 15px;
+			top: 15px;
+			padding: 15px;
+			border-radius: 5px;
+			box-sizing: border-box;
+			box-shadow: 0 4px 8px rgba(0, 0, 0, 0.7);
+			background: #fff;
+		}
+		</style>
+		<script id="terrainV" type="x-shader/x-vertex">
+			precision highp float;
+			attribute vec3 vPosition;
+			attribute vec3 vNormal;
+			attribute vec3 vTangent;
+			attribute vec2 vUV;
+			attribute vec4 vColor;
+
+			uniform mat4 mProjection;
+			uniform mat4 mView;
+			uniform mat4 mModel;
+
+			varying vec4 oPosition;
+			varying vec3 oNormal;
+			varying vec3 oTangent;
+			varying vec2 oUV;
+			varying vec4 oColor;
+
+			void main() {
+				mat4 mViewModel = mView * mModel;
+				vec4 pos = mViewModel * vec4(vPosition, 1.0);
+				gl_Position = mProjection * pos;
+				oNormal = normalize(mViewModel * vec4(vNormal, 0.0)).xyz;
+				oTangent = normalize(mViewModel * vec4(vTangent, 0.0)).xyz;
+				oUV = vUV;
+				oColor = vColor;
+				oPosition = pos;
+			}
+		</script>
+		<script id="terrainF" type="x-shader/x-fragment">
+			precision mediump float;
+			varying vec4 oPosition;
+			varying vec3 oNormal;
+			varying vec3 oTangent;
+			varying vec2 oUV;
+			varying vec4 oColor;
+
+			uniform sampler2D tGrass;
+			uniform sampler2D tRock;
+			uniform sampler2D tSnow;
+
+			vec3 color_from_height(float height, float uvscale) {
+				vec3 terrain_colours[3];
+				terrain_colours[0] = texture2D(tGrass, oUV * uvscale).rgb;
+				terrain_colours[1] = texture2D(tRock, oUV * uvscale).rgb;
+				terrain_colours[2] = texture2D(tSnow, oUV * uvscale).rgb;
+
+				float hscaled = height * 2.0 - 1e-05;
+				int hi = int(hscaled);
+				float hfrac = hscaled - float(hi);
+				if (hi == 0)
+					return mix(terrain_colours[0], terrain_colours[1], hfrac);
+				else
+					return mix(terrain_colours[1], terrain_colours[2], hfrac);
+				return vec3(0.0, 0.0, 0.0);
+			}
+
+			void main() {
+				float height = oColor.r;
+				vec3 L = vec3(-1.0, 0.5, 0.0);
+				float nl = max(dot(normalize(oNormal), L), 0.0) + 0.15;
+
+				gl_FragColor = vec4(color_from_height(height, 16.0) * nl, 1.0);
+			}
+		</script>
+
+		<script type="text/javascript" src="./src/glfx.js"></script>
+		<canvas class="glfx" id="glfx" width="640" height="480">
+			ERROR
+		</canvas>
+		<div class="floating-panel">
+			<h3>Terrain Generator</h3>
+			<p>Step</p>
+			<input id="step" type="number" min="4" max="16" value="4" />
+			<p>Scale</p>
+			<input id="scale" type="number" min="0.05" max="10.0" step="0.05" value="0.1" />
+			<p>Height</p>
+			<input id="hscale" type="number" min="1.0" max="100.0" step="0.1" value="5.0" />
+			<p>Height Map File</p>
+			<input id="heightmap-path" type="text" />
+			<button onclick="loadHeightMap()">Generate!</button>
+		</div>
+		<script type="text/javascript">
+			let [canvas, gl] = GLFX_ContextSetup("glfx");
+
+			const FOV = 50;
+
+			gl.enable(gl.DEPTH_TEST);
+
+			let proj = Mat4.perspective(Math.radians(FOV), canvas.width / canvas.height, 0.01, 1000.0);;
+			let view = Mat4.translation(0, -12, -20).mul(Mat4.rotationX(Math.radians(-45)));
+			let model = Mat4.ident();
+
+			let shader = new Shader(gl);
+			shader.setSources(
+				document.getElementById("terrainV").innerHTML,
+				document.getElementById("terrainF").innerHTML
+			);
+
+			let grass = new Texture2D(gl, "./grass.png");
+			let rock = new Texture2D(gl, "./rock.png");
+			let snow = new Texture2D(gl, "./snow.png");
+
+			let terrain = null;
+			
+			function loadHeightMap() {
+				let img = new Image();
+				img.crossOrigin = "Anonymous";
+				img.onload = function() {
+					var cv = document.createElement('canvas');
+					var ctx = cv.getContext('2d');
+					cv.width = img.width;
+					cv.height = img.height;
+					ctx.drawImage(img, 0, 0);
+
+					let STEP = document.getElementById("step").value;
+					let SCALE = document.getElementById("scale").value;
+					let HEIGHT_SCALE = document.getElementById("hscale").value;
+					if (document.getElementById("heightmap-path").value === "") {
+						STEP = 4;
+						SCALE = 0.25;
+						HEIGHT_SCALE = 7.0;
+					}
+
+					let TSIZE = ~~(img.width / STEP);
+
+					if (terrain !== null) {
+						terrain.delete();
+					}
+					terrain = new Mesh(gl);
+					for (let y = 0; y < TSIZE; y++) {
+						for (let x = 0; x < TSIZE; x++) {
+							let color = ctx.getImageData(x * STEP, y * STEP, 1, 1).data;
+							let h = (color[0] / 255.0);
+							let height = (h * HEIGHT_SCALE);
+							let u = x / TSIZE;
+							let v = y / TSIZE;
+							terrain.addVertex(
+								(x - TSIZE / 2) * SCALE,
+								height,
+								(y - TSIZE / 2) * SCALE,
+								u, v,
+								0, 0, 0,
+								0, 0, 0,
+								h, h, h, 1.0
+							);
+						}
+					}
+					for (let y = 0; y < TSIZE-1; y++) {
+						for (let x = 0; x < TSIZE; x++) {
+							let i = x + y * TSIZE;
+							let ni = x + (y + 1) * TSIZE;
+							terrain.addIndex(i);
+							terrain.addIndex(ni);
+						}
+						terrain.addIndex((y + 2) * TSIZE - 1);
+						terrain.addIndex((y + 1) * TSIZE );
+					}
+					
+					terrain.calculateNormals(gl.TRIANGLE_STRIP);
+					terrain.update();
+				}
+				if (document.getElementById("heightmap-path").value !== "") {
+					img.src = document.getElementById("heightmap-path").value;
+				} else {
+					img.src = "./terrain3.png";
+				}
+			}
+			loadHeightMap();
+
+			let rot = 0;
+			window.onresize = function(e) {
+				canvas.width = window.innerWidth;
+				canvas.height = window.innerHeight;
+				proj = Mat4.perspective(Math.radians(FOV), canvas.width / canvas.height, 0.01, 1000.0);
+				gl.viewport(0, 0, canvas.width, canvas.height);
+			};
+			window.onresize(null);
+
+			function mainLoop() {
+				gl.clearColor(0, 0, 0, 1.0);
+				gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+				if (terrain !== null) {
+					grass.bind(0);
+					rock.bind(1);
+					snow.bind(2);
+
+					shader.bind();
+					shader.getUniform("mProjection").setMat4(proj);
+					shader.getUniform("mView").setMat4(view);
+					shader.getUniform("mModel").setMat4(model);
+					shader.getUniform("tGrass").setInt(0);
+					shader.getUniform("tRock").setInt(1);
+					shader.getUniform("tSnow").setInt(2);
+					terrain.render(shader, gl.TRIANGLE_STRIP);
+				}
+
+				model = Mat4.rotationY(rot);
+				rot += 0.0025;
+
+				GLFX_NextFrame(mainLoop);
+			}
+
+			mainLoop();
+		</script>
+	</body>
+</html>

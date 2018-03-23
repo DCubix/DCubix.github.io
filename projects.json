@@ -1,20 +1,8 @@
 [
 	{
-		"title": "Test Title",
-		"thumb": "./img/image.png",
-		"description": "Simple project entry for testing the listing.",
-		"url": "#"
-	},
-	{
-		"title": "Test Title",
-		"thumb": "./img/image.png",
-		"description": "Simple project entry for testing the listing.",
-		"url": "#"
-	},
-	{
-		"title": "Test Title",
-		"thumb": "./img/image.png",
-		"description": "Simple project entry for testing the listing.",
-		"url": "#"
+		"title": "Terrain Generator",
+		"thumb": "./img/terrainGen.png",
+		"description": "An experiment with WebGL. Generates a terrain from a height map.",
+		"url": "./projects/terrainGen"
 	}
 ]
