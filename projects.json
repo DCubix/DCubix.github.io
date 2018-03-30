@@ -1,14 +1,20 @@
 [
 	{
+		"title": "GLFX",
+		"thumb": "./img/glfx.png",
+		"description": "Simple and handy framework for WebGL applications.",
+		"url": "https://github.com/DCubix/glfx"
+	},
+	{
 		"title": "Terrain Generator",
 		"thumb": "./img/terrainGen.png",
 		"description": "An experiment with WebGL. Generates a terrain from a height map.",
 		"url": "./projects/terrainGen"
 	},
 	{
-		"title": "GLFX",
-		"thumb": "./img/glfx.png",
-		"description": "Simple and handy framework for WebGL applications.",
-		"url": "https://github.com/DCubix/glfx"
+		"title": "Photo Bricks",
+		"thumb": "./img/bricks.png",
+		"description": "Generates plastic brick pixel art from regular images.",
+		"url": "./projects/photoBricks"
 	}
 ]
