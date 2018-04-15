@@ -4,6 +4,8 @@
 		<title>GLFX</title>
 
 		<link rel="stylesheet" type="text/css" href="../../semantic/semantic.min.css">
+		<link rel="stylesheet" type="text/css" href="https://tyleryasaka.github.io/semantic-ui-range/range.css">
+		
 	</head>
 	<body>
 		<style type="text/css">
@@ -49,7 +51,7 @@
 				mat4 mViewModel = mView * mModel;
 				vec4 pos = mViewModel * vec4(vPosition, 1.0);
 				gl_Position = mProjection * pos;
-				oNormal = normalize(mViewModel * vec4(vNormal, 0.0)).xyz;
+				oNormal = normalize(mModel * vec4(vNormal, 0.0)).xyz;
 				oUV = vUV;
 				oColor = vColor;
 				oPosition = pos;
@@ -65,6 +67,8 @@
 			uniform sampler2D tGrass;
 			uniform sampler2D tRock;
 			uniform sampler2D tSnow;
+
+			uniform vec3 uLightDir;
 
 			vec3 color_from_height(float height, float uvscale) {
 				vec3 terrain_colours[3];
@@ -83,10 +87,10 @@
 			}
 
 			void main() {
-				float height = oColor.r;
+				float height = (oColor.r + oColor.g + oColor.b) / 3.0;
 				vec3 V = normalize(-oPosition.xyz);
 				vec3 N = normalize(oNormal);
-				vec3 L = vec3(-1.0, 0.5, 0.0);
+				vec3 L = uLightDir;
 
 				float nl = clamp(dot(N, L) * 3.0, 0.0, 1.0) * 0.5 + 0.5;
 				vec3 lighting = nl * vec3(0.66, 0.75, 0.84);
@@ -109,23 +113,22 @@
 			integrity="sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8="
 			crossorigin="anonymous"></script>
 		<script src="../../semantic/components/accordion.min.js"></script>
+		<script src="https://tyleryasaka.github.io/semantic-ui-range/range.js"></script>
 		<script src="../../semantic/semantic.min.js"></script>
 		<script language='javascript'>
 			$(document).ready(function(){
 				$('.ui.accordion').accordion();
 			});
-			
 		</script>
 
 		<script type="text/javascript" src="./src/glfx.js"></script>
 		<canvas class="glfx" id="glfx" width="640" height="480">
 			ERROR
 		</canvas>
-		
+
 		<!-- UI -->
 		<div class="ui form floating">
 			<div class="ui medium header">Terrain Generator</div>
-			<br>
 			<div class="ui">
 				<div>
 					<label for="file" class="ui icon button fluid">
@@ -135,9 +138,11 @@
 					<input type="file" id="file" style="display:none">
 				</div>
 				<br>
-				<p>Step</p>
-				<div class="ui input">
-					<input type="number" min="1" max="10" value="4" step="1" id="step" />
+				<p>Light Direction</p>
+				<div class="ui segment">
+					X <div class="ui range" id="lx"></div>
+					Y <div class="ui range" id="ly"></div>
+					Z <div class="ui range" id="lz"></div>
 				</div>
 				<p>Scale</p>
 				<div class="ui input">
@@ -170,10 +175,14 @@
 			var FOV = 50;
 
 			gl.enable(gl.DEPTH_TEST);
+			gl.enable(gl.CULL_FACE);
 
 			var proj = _.Mat4.perspective(Math.radians(FOV), canvas.width / canvas.height, 0.01, 1000.0);;
-			var view = _.Mat4.translation(0, -12, -20).mul(_.Mat4.rotationX(Math.radians(-45)));
+			var view = _.Mat4.ident();
 			var model = _.Mat4.ident();
+
+			var pivot = _.Mat4.rotationX(Math.radians(-45));
+			var cameraT = _.Mat4.translation(0, 0, -10);
 
 			var shader = _.Shader.fromHTMLElement("terrainV", "terrainF");
 			
@@ -184,7 +193,9 @@
 			var terrain = null;
 			var image = null;
 			var imageValid = false;
-			
+
+			var lightDir = new _.Vec3(1.0, 1.0, 1.0);
+
 			class Vert {
 				constructor(position, uv, normal, color) {
 					this.position = position;
@@ -223,6 +234,7 @@
 				setTimeout(func, 10);
 			}
 
+			let MAX_SIZE = 256;
 			function loadHeightMap() {
 				$("#gen_loader").addClass("active");
 				function load(img, ondone) {
@@ -232,13 +244,14 @@
 					cv.height = img.height;
 					ctx.drawImage(img, 0, 0);
 
-					var STEP = document.getElementById("step").value;
+					var STEP = 4;
 					var SCALE = document.getElementById("scale").value;
 					var HEIGHT_SCALE = document.getElementById("hscale").value;
 					if (!imageValid) {
-						STEP = 4;
 						SCALE = 0.25;
 						HEIGHT_SCALE = 7.0;
+					} else {
+						STEP = ~~(img.width / MAX_SIZE);
 					}
 
 					let TSIZE = ~~(img.width / STEP);
@@ -250,8 +263,11 @@
 					for (let y = 0; y < TSIZE; y++) {
 						for (let x = 0; x < TSIZE; x++) {
 							let color = ctx.getImageData(x * STEP, y * STEP, 1, 1).data;
-							let h = (color[0] / 255.0);
-							let height = (h * HEIGHT_SCALE);
+							let rh = (color[0] / 255.0);
+							let gh = (color[1] / 255.0);
+							let bh = (color[2] / 255.0);
+							let avgh = (rh + gh + bh) / 3.0;
+							let height = (avgh * HEIGHT_SCALE);
 							let u = x / TSIZE;
 							let v = y / TSIZE;
 							terrain.addVertex(
@@ -263,7 +279,7 @@
 									),
 									new _.Vec2(u, v),
 									new _.Vec3(),
-									new _.Vec4(h, h, h, 1.0)
+									new _.Vec4(rh, gh, bh, 1.0)
 								)
 							);
 						}
@@ -285,15 +301,16 @@
 					if (ondone) ondone();
 				}
 
-				if (image === null) {
+				if (!imageValid) {
 					image = new Image();
 					image.onload = async function() {
 						asyncRun(function() {
 							load(image, function() { $("#gen_loader").removeClass("active"); });
 						});
+						imageValid = true;
 					};
 					image.src = "./terrain3.png";
-				} else if (imageValid) {
+				} else {
 					asyncRun(function() {
 						load(image, function() { $("#gen_loader").removeClass("active"); });
 					});
@@ -301,6 +318,33 @@
 			}
 			loadHeightMap();
 			
+			$('#lx').range({
+				min: 0,
+				max: 100,
+				start: 100,
+				onChange: function(value) {
+					lightDir.x = ((value / 100.0) * 2.0 - 1.0) * Math.PI;
+				}
+			});
+			
+			$('#ly').range({
+				min: 0,
+				max: 100,
+				start: 100,
+				onChange: function(value) {
+					lightDir.y = ((value / 100.0) * 2.0 - 1.0) * Math.PI;
+				}
+			});
+			
+			$('#lz').range({
+				min: 0,
+				max: 100,
+				start: 100,
+				onChange: function(value) {
+					lightDir.z = ((value / 100.0) * 2.0 - 1.0) * Math.PI;
+				}
+			});
+
 			$("#btn_gen").click(function() {
 				loadHeightMap();
 			});
@@ -330,7 +374,67 @@
 			};
 			window.onresize(null);
 
+			var mx, my, mpx, mpy, mdx, mdy;
+			var manip = false, move = false;
+			var d = new _.Vec3();
+			window.onkeydown = function(e) {
+				switch (e.keyCode) {
+					case 87: d.set(0, 0, 0.1); move = true; break;
+					case 83: d.set(0, 0, -0.1); move = true; break;
+					case 68: d.set(-0.1, 0, 0); move = true; break;
+					case 65: d.set(0.1, 0, 0); move = true; break;
+					// case 87: pivot = _.Mat4.translation(0, 0, 0.1).mul(pivot); break;
+					// case 83: pivot = _.Mat4.translation(0, 0, -0.1).mul(pivot); break;
+					// case 68: pivot = _.Mat4.translation(-0.1, 0, 0).mul(pivot); break;
+					// case 65: pivot = _.Mat4.translation(0.1, 0, 0).mul(pivot); break;
+				}
+			};
+
+			window.onkeyup = function(e) {
+				move = false;
+			};
+
+			canvas.onmousedown = function(evt) {
+				var rect = canvas.getBoundingClientRect();
+				mx = evt.clientX - rect.left;
+				my = evt.clientY - rect.top;
+				mpx = mx;
+				mpy = my;
+				manip = true;
+			};
+
+			canvas.onmousemove = function(evt) {
+				if (manip) {
+					var rect = canvas.getBoundingClientRect();
+					mx = evt.clientX - rect.left;
+					my = evt.clientY - rect.top;
+					mdx = mx - mpx;
+					mdy = my - mpy;
+					mpx = mx;
+					mpy = my;
+
+					//pivot = pivot.mul(_.Mat4.rotationX(-mdy * 0.005));
+					pivot = _.Mat4.rotationY(mdx * 0.005).mul(pivot);
+				}
+			};
+
+			canvas.onmouseup = function(evt) {
+				manip = false;
+			};
+
+			canvas.onmousewheel = function(e) {
+				var delta = Math.max(-1, Math.min(1, (e.wheelDelta || -e.detail)));
+				cameraT = cameraT.mul(_.Mat4.translation(0, 0, delta * 0.3));
+			};
+
 			function mainLoop() {
+				var M = _.Mat4.rotationZ(lightDir.z)
+						.mul(_.Mat4.rotationY(lightDir.y))
+						.mul(_.Mat4.rotationX(lightDir.x));
+				var L = M.mul(new _.Vec4(0, 1, 0, 0));
+
+				view = pivot.mul(cameraT);
+
 				gl.clearColor(0, 0, 0, 1.0);
 				gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
@@ -346,13 +450,11 @@
 					shader.getUniform("tGrass").setInt(0);
 					shader.getUniform("tRock").setInt(1);
 					shader.getUniform("tSnow").setInt(2);
+					shader.getUniform("uLightDir").setVec3(L);
 					terrain.bind(shader);
 					terrain.render(gl.TRIANGLE_STRIP);
 					terrain.unbind();
 				}
-
-				model = _.Mat4.rotationY(rot);
-				rot += 0.0025;
 
 				_.nextFrame(mainLoop);
 			}

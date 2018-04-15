@@ -550,16 +550,16 @@ var GLFX;
                 GLFX.GL.bufferSubData(GLFX.GL.ARRAY_BUFFER, 0, new Float32Array(vdata));
             if (this.indexed) {
                 GLFX.GL.bindBuffer(GLFX.GL.ELEMENT_ARRAY_BUFFER, this.ibo);
-                let esize = Uint16Array.BYTES_PER_ELEMENT * this.indices.length;
+                let esize = Uint32Array.BYTES_PER_ELEMENT * this.indices.length;
                 if (esize > this.ibo_size) {
                     if (!this.dynamic)
-                        GLFX.GL.bufferData(GLFX.GL.ELEMENT_ARRAY_BUFFER, new Uint16Array(this.indices), usage);
+                        GLFX.GL.bufferData(GLFX.GL.ELEMENT_ARRAY_BUFFER, new Uint32Array(this.indices), usage);
                     else
                         GLFX.GL.bufferData(GLFX.GL.ELEMENT_ARRAY_BUFFER, esize, usage);
                     this.ibo_size = esize;
                 }
                 if (this.dynamic)
-                    GLFX.GL.bufferSubData(GLFX.GL.ELEMENT_ARRAY_BUFFER, 0, new Uint16Array(this.indices));
+                    GLFX.GL.bufferSubData(GLFX.GL.ELEMENT_ARRAY_BUFFER, 0, new Uint32Array(this.indices));
                 GLFX.GL.bindBuffer(GLFX.GL.ELEMENT_ARRAY_BUFFER, null);
             }
             GLFX.GL.bindBuffer(GLFX.GL.ARRAY_BUFFER, null);
@@ -582,7 +582,7 @@ var GLFX;
         render(mode, offset = 0, count = -1) {
             if (this.indexed) {
                 let cnt = count == -1 ? this.indexCount : count;
-                GLFX.GL.drawElements(mode, cnt, GLFX.GL.UNSIGNED_SHORT, offset);
+                GLFX.GL.drawElements(mode, cnt, GLFX.GL.UNSIGNED_INT, offset);
             }
             else {
                 let cnt = count == -1 ? this.vertexCount : count;
