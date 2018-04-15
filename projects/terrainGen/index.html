@@ -219,8 +219,13 @@
 				}
 			}
 
+			function asyncRun(func) {
+				setTimeout(func, 10);
+			}
+
 			function loadHeightMap() {
-				function load(img) {
+				$("#gen_loader").addClass("active");
+				function load(img, ondone) {
 					var cv = document.createElement('canvas');
 					var ctx = cv.getContext('2d');
 					cv.width = img.width;
@@ -276,16 +281,22 @@
 					
 					terrain.process(new _.NormalCalculator(gl.TRIANGLE_STRIP));
 					terrain.flush();
+
+					if (ondone) ondone();
 				}
-				
+
 				if (image === null) {
 					image = new Image();
-					image.onload = function() {
-						load(image);
+					image.onload = async function() {
+						asyncRun(function() {
+							load(image, function() { $("#gen_loader").removeClass("active"); });
+						});
 					};
 					image.src = "./terrain3.png";
 				} else if (imageValid) {
-					load(image);
+					asyncRun(function() {
+						load(image, function() { $("#gen_loader").removeClass("active"); });
+					});
 				}
 			}
 			loadHeightMap();
@@ -295,6 +306,7 @@
 			});
 
 			$("#file").change(function() {
+				imageValid = false;
 				if (this.files && this.files[0]) {
 					var reader = new FileReader();
 					reader.onload = function(e) {
