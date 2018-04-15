@@ -2,6 +2,8 @@
 <html>
 	<head>
 		<title>GLFX</title>
+
+		<link rel="stylesheet" type="text/css" href="../../semantic/semantic.min.css">
 	</head>
 	<body>
 		<style type="text/css">
@@ -15,18 +17,16 @@
 			width: 100%;
 			height: 100%;
 		}
-		.floating-panel {
-			display: flex;
-			flex-direction: column;
+		.floating {
 			position: absolute;
+			width: 280px;
 			z-index: 10;
-			left: 15px;
-			top: 15px;
-			padding: 15px;
-			border-radius: 5px;
-			box-sizing: border-box;
-			box-shadow: 0 4px 8px rgba(0, 0, 0, 0.7);
+			left: 10px;
+			top: 10px;
 			background: #fff;
+			padding: 12px;
+			box-sizing: border-box;
+			box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
 		}
 		</style>
 		<script id="terrainV" type="x-shader/x-vertex">
@@ -104,22 +104,63 @@
 			}
 		</script>
 
+		<script
+			src="https://code.jquery.com/jquery-3.1.1.min.js"
+			integrity="sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8="
+			crossorigin="anonymous"></script>
+		<script src="../../semantic/components/accordion.min.js"></script>
+		<script src="../../semantic/semantic.min.js"></script>
+		<script language='javascript'>
+			$(document).ready(function(){
+				$('.ui.accordion').accordion();
+			});
+			
+		</script>
+
 		<script type="text/javascript" src="./src/glfx.js"></script>
 		<canvas class="glfx" id="glfx" width="640" height="480">
 			ERROR
 		</canvas>
-		<div class="floating-panel">
-			<h3>Terrain Generator</h3>
-			<p>Step</p>
-			<input id="step" type="number" min="4" max="16" value="4" />
-			<p>Scale</p>
-			<input id="scale" type="number" min="0.05" max="10.0" step="0.05" value="0.1" />
-			<p>Height</p>
-			<input id="hscale" type="number" min="1.0" max="100.0" step="0.1" value="5.0" />
-			<p>Height Map File</p>
-			<input id="heightmap-path" type="text" />
-			<button onclick="loadHeightMap()">Generate!</button>
+		
+		<!-- UI -->
+		<div class="ui form floating">
+			<div class="ui medium header">Terrain Generator</div>
+			<br>
+			<div class="ui">
+				<div>
+					<label for="file" class="ui icon button fluid">
+						<i class="file icon"></i>
+						Select File
+					</label>
+					<input type="file" id="file" style="display:none">
+				</div>
+				<br>
+				<p>Step</p>
+				<div class="ui input">
+					<input type="number" min="1" max="10" value="4" step="1" id="step" />
+				</div>
+				<p>Scale</p>
+				<div class="ui input">
+					<input type="number" min="0.1" max="1.0" value="0.2" step="0.01" id="scale" />
+				</div>
+				<p>Height</p>
+				<div class="ui input">
+					<input type="number" min="1.0" max="255.0" value="2.5" step="0.1" id="hscale" />
+				</div>
+				<div class="ui small header">Preview</div>
+				<img id="out_preview" class="ui small bordered image rounded fluid" src="../../img/image.png">
+			</div>
+			<br>
+			<button id="btn_gen" class="ui positive fluid button">
+				<i class="cog icon"></i>
+				Generate
+			</button>
+			<div id="gen_loader" class="ui dimmer">
+				<div class="ui loader"></div>
+			</div>
 		</div>
+		<!-- UI -->
+
 		<script type="text/javascript">
 			var _ = GLFX;
 			_.createContext("glfx");
@@ -141,6 +182,8 @@
 			var snow = new _.Texture2D("./snow.png");
 
 			var terrain = null;
+			var image = null;
+			var imageValid = false;
 			
 			class Vert {
 				constructor(position, uv, normal, color) {
@@ -177,9 +220,7 @@
 			}
 
 			function loadHeightMap() {
-				var img = new Image();
-				img.crossOrigin = "Anonymous";
-				img.onload = function() {
+				function load(img) {
 					var cv = document.createElement('canvas');
 					var ctx = cv.getContext('2d');
 					cv.width = img.width;
@@ -189,7 +230,7 @@
 					var STEP = document.getElementById("step").value;
 					var SCALE = document.getElementById("scale").value;
 					var HEIGHT_SCALE = document.getElementById("hscale").value;
-					if (document.getElementById("heightmap-path").value === "") {
+					if (!imageValid) {
 						STEP = 4;
 						SCALE = 0.25;
 						HEIGHT_SCALE = 7.0;
@@ -236,13 +277,37 @@
 					terrain.process(new _.NormalCalculator(gl.TRIANGLE_STRIP));
 					terrain.flush();
 				}
-				if (document.getElementById("heightmap-path").value !== "") {
-					img.src = document.getElementById("heightmap-path").value;
-				} else {
-					img.src = "./terrain3.png";
+				
+				if (image === null) {
+					image = new Image();
+					image.onload = function() {
+						load(image);
+					};
+					image.src = "./terrain3.png";
+				} else if (imageValid) {
+					load(image);
 				}
 			}
 			loadHeightMap();
+			
+			$("#btn_gen").click(function() {
+				loadHeightMap();
+			});
+
+			$("#file").change(function() {
+				if (this.files && this.files[0]) {
+					var reader = new FileReader();
+					reader.onload = function(e) {
+						image = new Image();
+						image.onload = function() {
+							imageValid = true;
+						};
+						image.src = e.target.result;
+						$("#out_preview").attr("src", e.target.result);
+					};
+					reader.readAsDataURL(this.files[0]);
+				}
+			});
 
 			let rot = 0;
 			window.onresize = function(e) {
