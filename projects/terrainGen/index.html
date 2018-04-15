@@ -33,7 +33,6 @@
 			precision highp float;
 			attribute vec3 vPosition;
 			attribute vec3 vNormal;
-			attribute vec3 vTangent;
 			attribute vec2 vUV;
 			attribute vec4 vColor;
 
@@ -43,7 +42,6 @@
 
 			varying vec4 oPosition;
 			varying vec3 oNormal;
-			varying vec3 oTangent;
 			varying vec2 oUV;
 			varying vec4 oColor;
 
@@ -52,7 +50,6 @@
 				vec4 pos = mViewModel * vec4(vPosition, 1.0);
 				gl_Position = mProjection * pos;
 				oNormal = normalize(mViewModel * vec4(vNormal, 0.0)).xyz;
-				oTangent = normalize(mViewModel * vec4(vTangent, 0.0)).xyz;
 				oUV = vUV;
 				oColor = vColor;
 				oPosition = pos;
@@ -62,7 +59,6 @@
 			precision mediump float;
 			varying vec4 oPosition;
 			varying vec3 oNormal;
-			varying vec3 oTangent;
 			varying vec2 oUV;
 			varying vec4 oColor;
 
@@ -78,7 +74,7 @@
 
 				float hscaled = height * 2.0 - 1e-05;
 				int hi = int(hscaled);
-				float hfrac = hscaled - float(hi);
+				float hfrac = (hscaled - float(hi));
 				if (hi == 0)
 					return mix(terrain_colours[0], terrain_colours[1], hfrac);
 				else
@@ -88,10 +84,23 @@
 
 			void main() {
 				float height = oColor.r;
+				vec3 V = normalize(-oPosition.xyz);
+				vec3 N = normalize(oNormal);
 				vec3 L = vec3(-1.0, 0.5, 0.0);
-				float nl = max(dot(normalize(oNormal), L), 0.0) + 0.15;
 
-				gl_FragColor = vec4(color_from_height(height, 16.0) * nl, 1.0);
+				float nl = clamp(dot(N, L) * 3.0, 0.0, 1.0) * 0.5 + 0.5;
+				vec3 lighting = nl * vec3(0.66, 0.75, 0.84);
+
+				float rim = 1.0 - clamp(dot(V, N), 0.0, 1.0);
+
+				vec3 col = color_from_height(height, 16.0);
+				
+				vec3 rimColor = vec3(0.44, 0.25, 0.16);
+				vec3 rimL = rimColor * pow(rim, 1.6);
+				
+				vec3 finalColor = col * (lighting + rimL);
+				
+				gl_FragColor = vec4(finalColor, 1.0);
 			}
 		</script>
 
@@ -112,30 +121,63 @@
 			<button onclick="loadHeightMap()">Generate!</button>
 		</div>
 		<script type="text/javascript">
-			let [canvas, gl] = GLFX_ContextSetup("glfx");
+			var _ = GLFX;
+			_.createContext("glfx");
+			var canvas = _.Canvas;
+			var gl = _.GL;
 
-			const FOV = 50;
+			var FOV = 50;
 
 			gl.enable(gl.DEPTH_TEST);
 
-			let proj = Mat4.perspective(Math.radians(FOV), canvas.width / canvas.height, 0.01, 1000.0);;
-			let view = Mat4.translation(0, -12, -20).mul(Mat4.rotationX(Math.radians(-45)));
-			let model = Mat4.ident();
+			var proj = _.Mat4.perspective(Math.radians(FOV), canvas.width / canvas.height, 0.01, 1000.0);;
+			var view = _.Mat4.translation(0, -12, -20).mul(_.Mat4.rotationX(Math.radians(-45)));
+			var model = _.Mat4.ident();
 
-			let shader = new Shader(gl);
-			shader.setSources(
-				document.getElementById("terrainV").innerHTML,
-				document.getElementById("terrainF").innerHTML
-			);
-
-			let grass = new Texture2D(gl, "./grass.png");
-			let rock = new Texture2D(gl, "./rock.png");
-			let snow = new Texture2D(gl, "./snow.png");
-
-			let terrain = null;
+			var shader = _.Shader.fromHTMLElement("terrainV", "terrainF");
 			
+			var grass = new _.Texture2D("./grass.png");
+			var rock = new _.Texture2D("./rock.png");
+			var snow = new _.Texture2D("./snow.png");
+
+			var terrain = null;
+			
+			class Vert {
+				constructor(position, uv, normal, color) {
+					this.position = position;
+					this.uv = uv;
+					this.normal = normal;
+					this.color = color;
+				}
+				getFormat() {
+					let fmt = new _.VertexFormat();
+					fmt.add("vPosition", 3, false);
+					fmt.add("vNormal", 3, false);
+					fmt.add("vUV", 2, false);
+					fmt.add("vColor", 4, true);
+					return fmt;
+				}
+				toArray() {
+					return [
+						this.position.x, this.position.y, this.position.z,
+						this.normal.x, this.normal.y, this.normal.z,
+						this.uv.x, this.uv.y,
+						this.color.x, this.color.y, this.color.z, this.color.w
+					];
+				}
+				getPosition() {
+					return this.position;
+				}
+				getNormal() {
+					return this.normal;
+				}
+				setNormal(n) {
+					this.normal = n;
+				}
+			}
+
 			function loadHeightMap() {
-				let img = new Image();
+				var img = new Image();
 				img.crossOrigin = "Anonymous";
 				img.onload = function() {
 					var cv = document.createElement('canvas');
@@ -144,9 +186,9 @@
 					cv.height = img.height;
 					ctx.drawImage(img, 0, 0);
 
-					let STEP = document.getElementById("step").value;
-					let SCALE = document.getElementById("scale").value;
-					let HEIGHT_SCALE = document.getElementById("hscale").value;
+					var STEP = document.getElementById("step").value;
+					var SCALE = document.getElementById("scale").value;
+					var HEIGHT_SCALE = document.getElementById("hscale").value;
 					if (document.getElementById("heightmap-path").value === "") {
 						STEP = 4;
 						SCALE = 0.25;
@@ -156,9 +198,9 @@
 					let TSIZE = ~~(img.width / STEP);
 
 					if (terrain !== null) {
-						terrain.delete();
+						terrain.destroy();
 					}
-					terrain = new Mesh(gl);
+					terrain = new _.Mesh(true, true);
 					for (let y = 0; y < TSIZE; y++) {
 						for (let x = 0; x < TSIZE; x++) {
 							let color = ctx.getImageData(x * STEP, y * STEP, 1, 1).data;
@@ -167,13 +209,16 @@
 							let u = x / TSIZE;
 							let v = y / TSIZE;
 							terrain.addVertex(
-								(x - TSIZE / 2) * SCALE,
-								height,
-								(y - TSIZE / 2) * SCALE,
-								u, v,
-								0, 0, 0,
-								0, 0, 0,
-								h, h, h, 1.0
+								new Vert(
+									new _.Vec3(
+										(x - TSIZE / 2) * SCALE,
+										height,
+										(y - TSIZE / 2) * SCALE,
+									),
+									new _.Vec2(u, v),
+									new _.Vec3(),
+									new _.Vec4(h, h, h, 1.0)
+								)
 							);
 						}
 					}
@@ -188,8 +233,8 @@
 						terrain.addIndex((y + 1) * TSIZE );
 					}
 					
-					terrain.calculateNormals(gl.TRIANGLE_STRIP);
-					terrain.update();
+					terrain.process(new _.NormalCalculator(gl.TRIANGLE_STRIP));
+					terrain.flush();
 				}
 				if (document.getElementById("heightmap-path").value !== "") {
 					img.src = document.getElementById("heightmap-path").value;
@@ -203,7 +248,7 @@
 			window.onresize = function(e) {
 				canvas.width = window.innerWidth;
 				canvas.height = window.innerHeight;
-				proj = Mat4.perspective(Math.radians(FOV), canvas.width / canvas.height, 0.01, 1000.0);
+				proj = _.Mat4.perspective(Math.radians(FOV), canvas.width / canvas.height, 0.01, 1000.0);
 				gl.viewport(0, 0, canvas.width, canvas.height);
 			};
 			window.onresize(null);
@@ -224,13 +269,15 @@
 					shader.getUniform("tGrass").setInt(0);
 					shader.getUniform("tRock").setInt(1);
 					shader.getUniform("tSnow").setInt(2);
-					terrain.render(shader, gl.TRIANGLE_STRIP);
+					terrain.bind(shader);
+					terrain.render(gl.TRIANGLE_STRIP);
+					terrain.unbind();
 				}
 
-				model = Mat4.rotationY(rot);
+				model = _.Mat4.rotationY(rot);
 				rot += 0.0025;
 
-				GLFX_NextFrame(mainLoop);
+				_.nextFrame(mainLoop);
 			}
 
 			mainLoop();
