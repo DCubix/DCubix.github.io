@@ -1,0 +1,28 @@
+{
+  "name": "tesouraria-ad",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@material-ui/core": "^1.2.1",
+    "@material-ui/icons": "^1.1.0",
+    "classnames": "^2.2.6",
+    "firebase": "^5.0.4",
+    "font-awesome": "^4.7.0",
+    "material-ui-datetimepicker": "^1.0.7",
+    "material-ui-next-pickers": "0.0.11",
+    "material-ui-pickers": "^1.0.0-rc.10",
+    "primereact": "^1.6.0",
+    "react": "^16.4.0",
+    "react-dom": "^16.4.0",
+    "react-firebase": "^2.2.8",
+    "react-number-format": "^3.4.0",
+    "react-router-dom": "^4.3.1",
+    "react-scripts": "1.1.4"
+  },
+  "scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test --env=jsdom",
+    "eject": "react-scripts eject"
+  }
+}
