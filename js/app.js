@@ -14,11 +14,11 @@ var MD = new showdown.Converter({
 });
 var PAGES = {};
 var R = null;
-
+console.log(window.location.href);
 function load(url) {
 	req = new XMLHttpRequest();
 	req.open('GET', url);
-	req.send();
+	req.responseType = "document";
 	req.onload = () => {
 		var html = MD.makeHtml(req.responseText);
 
@@ -41,6 +41,7 @@ function load(url) {
 			$(img).addClass("w3-image imgcard");
 		});
 	};
+	req.send();
 }
 
 function merge(obj1, obj2){
