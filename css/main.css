@@ -34,19 +34,29 @@ hr {
 	box-sizing: border-box;
 }
 
-/* Extra small devices (phones, 600px and down) */
-@media only screen and (max-width: 600px) {
+/* Extra small devices (phones, 500px and down) */
+@media only screen and (max-width: 500px) {
 	#main {
-		width: 96%;
-		padding: 0.4em;
+		width: 100%;
+		padding: 0;
+		margin: 0;
 		box-sizing: border-box;
 	}
-} 
+
+	.round-image {
+		margin: auto;
+	}
+
+	.w3-container {
+		padding: 0;
+	}
+}
 
 /* Small devices (portrait tablets and large phones, 600px and up) */
 @media only screen and (min-width: 600px) {
 	#main {
-		width: 95%;
+		width: 98%;
+		padding: 0.6em;
 	}
 } 
 
@@ -63,7 +73,7 @@ hr {
 /* Large devices (laptops/desktops, 992px and up) */
 @media only screen and (min-width: 992px) {
 	#main {
-		width: 85%;
+		width: 87%;
 	}
 } 
 
@@ -91,19 +101,15 @@ pre code {
 }
 
 .header {
-	display: -webkit-box;
-	display: -moz-box;
-	display: -ms-flexbox;
-	display: -webkit-flex;
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
-	justify-content: center;
+	justify-content: flex-start;
 }
 
 .round-image {
-	height: 25vh;
-	width: 25vh;
-	margin: auto;
+	height: 20vh;
+	width: 20vh;
 	background-position: center center;
 	background-repeat: no-repeat;
 	background-size: cover;
@@ -111,6 +117,7 @@ pre code {
 	border-radius: 50%;
 	border: 1px solid #bbb;
 	box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+	align-self: center;
 }
 
 .round-image img {
