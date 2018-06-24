@@ -14,8 +14,11 @@
 
 		<link href="https://cdnjs.cloudflare.com/ajax/libs/foundicons/3.0.0/foundation-icons.css" rel="stylesheet">
 		<link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+
 		<link rel="stylesheet" href="./css/main.css">
-		<link rel="stylesheet" href="./semantic/components/accordion.min.css">
+		<link rel="stylesheet"
+			  href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/monokai.min.css">
+
 		<link rel="shortcut icon" href="./favicon.ico" />
 	</head>
 	<body>
@@ -23,16 +26,7 @@
 				integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
 				crossorigin="anonymous">
 		</script>
-		<script src="./semantic/components/accordion.min.js"></script>
-		<!-- <script src="./semantic/semantic.min.js"></script> -->
-
-		<script language='javascript'>
-			$(document).ready(function(){
-				$('.ui.accordion').accordion();
-			});
-		</script>
-
-		<div class="w3-container pop">
+		<div id="main" class="w3-container pop">
 			<div class="w3-row">
 				<div class="w3-quarter w3-container">
 					<div class="round-image"
@@ -57,133 +51,15 @@
 			</div>
 			<hr>
 			<div class="w3-row">
-				<div class="w3-container">
-					<h5>
-						<p>Hi, </p>
-						<p>
-							I'm a programmer, I mostly make real-time applications 
-							(such as <i>games</i> and visualizations).
-							I've been programming for about 10 years now.
-						</p>
-						<p>
-							Currently, I'm studying <b><i>Information Systems</i></b> at 
-							<b><i title="Universidade Federal do Mato Grosso do Sul">UFMS</i></b>.
-						</p>
-					</h5>
-					<br>
-					<h3><b><i>Projects</i></b></h3>
-					<div class="w3-panel">
-						<div class="ui accordion w3-container">
-							<div class="title">
-								<i class="dropdown icon"></i>
-								<b>GLFX</b>
-							</div>
-							<div class="content transition">
-								<p>
-									Simple framework for WebGL applications.
-									Wraps most of WebGL functions and provides several
-									types and functions for helping creating WebGL applications
-									with ease.
-									<a class="fi-link w3-large" href="https://github.com/DCubix/glfx"></a>
-								</p>
-								<img src="./img/glfx.png" class="w3-image" />
-							</div>
-
-							<div class="title">
-								<i class="dropdown icon"></i>
-								<b>Terrain Generator</b>
-							</div>
-							<div class="content transition">
-								<p>
-									Terrain generator from images. Written in JavaScript and uses WebGL for
-									3D rendering.
-									<a class="fi-link w3-large" href="./projects/terrainGen"></a>
-								</p>
-								<img src="./img/terrainGen.png" class="w3-image" />
-							</div>
-
-							<div class="title">
-								<i class="dropdown icon"></i>
-								<b>Photo Bricks</b>
-							</div>
-							<div class="content transition">
-								<p>
-									Convert your images to brick-art. Uses GLFX (WebGL) for 3D rendering.
-									<a class="fi-link w3-large" href="./projects/photoBricks"></a>
-								</p>
-								<img src="./img/brick.gif" class="w3-image" />
-							</div>
-
-							<div class="title">
-								<i class="dropdown icon"></i>
-								<b>Software Renderer</b>
-							</div>
-							<div class="content transition">
-								<p>
-									Software renderer written in C.
-									<a class="fi-link w3-large" href="https://www.youtube.com/watch?v=Vqb55_rRdI0"></a>
-								</p>
-								<img src="./img/srenderer.gif" class="w3-image" />
-							</div>
-
-							<div class="title">
-								<i class="dropdown icon"></i>
-								<b>Snek</b>
-							</div>
-							<div class="content transition">
-								<p>
-									Snake clone with some twists. Written in Java for
-									the <a href="https://itch.io/jam/lowrezjam2017">#LOWREZJAM</a>
-									of 2017.
-									<a class="fi-link w3-large" href="https://www.youtube.com/watch?v=Vqb55_rRdI0"></a>
-								</p>
-								<img src="https://img.itch.zone/aW1hZ2UvMTY2MzU2Lzc2OTI2OC5wbmc=/original/lnzriz.png" class="w3-image" />
-							</div>
-
-							<div class="title">
-								<i class="dropdown icon"></i>
-								<b>Logo-Assembly</b>
-							</div>
-							<div class="content transition">
-								<p>
-									A custom compiled Assembly language for Logo/Turtle Graphics programming.
-									Written in TypeScript and using HTML5 canvas for drawing.
-									<a class="fi-link w3-large" href="https://codepen.io/TwisterGE/pen/rdrpzG"></a>
-								</p>
-								<img src="./img/logoasm.gif" class="w3-image" />
-							</div>
-						</div>
-					</div>
-					<h3><b><i>Skills</i></b></h3>
-					<div class="w3-panel">
-						<h5>
-							<b>Programming Languages:</b>
-						</h5>
-						<h5>
-							<p>Java, JavaScript, Python, Lua, C, C++, Rust</p>
-						</h5>
-						<h5>
-							<b>Markup Languages:</b>
-						</h5>
-						<h5>
-							<p>HTML, CSS, Markdown</p>
-						</h5>
-						<h5>
-							<b>Technologies:</b>
-						</h5>
-						<h5>
-							<p>OpenGL, React-Native, CMake, MSVC, Git</p>
-						</h5>
-						<h5>
-							<b>Languages:</b>
-						</h5>
-						<h5>
-							<p>Portuguese (Brazil), English, Spanish</p>
-						</h5>
-					</div>
-				</div>
+				<div id="__ROOT__" class="w3-container"></div>
 			</div>
+			<hr>
 		</div>
+		
+		<script src="//unpkg.com/navigo@6"></script>
+		<script src="./js/showdown.js"></script>
+		<script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+		<script src="./js/app.js"></script>
 
 	</body>
 </html>
