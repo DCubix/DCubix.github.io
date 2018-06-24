@@ -14,10 +14,10 @@ var MD = new showdown.Converter({
 });
 var PAGES = {};
 var R = null;
-console.log(window.location.href);
+
 function load(url) {
 	req = new XMLHttpRequest();
-	req.open('GET', url);
+	req.open('GET', window.location.href+url);
 	req.responseType = "document";
 	req.onload = () => {
 		var html = MD.makeHtml(req.responseText);
@@ -56,9 +56,9 @@ $.get('./pages', (data) => {
 				  .map((x) => x.replace('href="', '')); // clean up
 	for (var k in pgs) {
 		var page = pgs[k];
-		PAGES["/"+page] = function() { load("./pages/"+page+".md"); };
+		PAGES["/"+page] = function() { load("pages/"+page+".md"); };
 	}
 	R = new Navigo(null, "!#", true);
-	var ROUTER = merge({ "*": function() { load("./pages/home.md"); } }, PAGES);
+	var ROUTER = merge({ "*": function() { load("pages/home.md"); } }, PAGES);
 	R.on(ROUTER).resolve();
 });
