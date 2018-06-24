@@ -12,23 +12,12 @@ var MD = new showdown.Converter({
 	simpleLineBreaks: true,
 	emoji: true
 });
-var PAGES = {};
-var R = null;
-var LOCATION = (function(){
-	var protocol = (
-		("https:" == document.location.protocol) 
-		? "https" 
-		: "http"
-	);
-	return protocol + window.location.href.replace("https:", "").replace("http:", "");
-})();
 
-console.log(LOCATION);
+var R = null;
 
 function load(url) {
 	req = new XMLHttpRequest();
 	req.open('GET', url);
-	req.responseType = "document";
 	req.onload = () => {
 		var html = MD.makeHtml(req.responseText);
 
@@ -54,21 +43,5 @@ function load(url) {
 	req.send();
 }
 
-function merge(obj1, obj2){
-	var obj3 = {};
-	for (var attrname in obj1) { obj3[attrname] = obj1[attrname]; }
-	for (var attrname in obj2) { obj3[attrname] = obj2[attrname]; }
-	return obj3;
-}
-
-$.get("/pages/", (data) => {
-	var pgs = data.match(/href="([\w]+)/g) // pull out the hrefs
-				  .map((x) => x.replace('href="', '')); // clean up
-	for (var k in pgs) {
-		var page = pgs[k];
-		PAGES["/"+page] = function() { load("/pages/"+page+".md"); };
-	}
-	R = new Navigo(null, "!#", true);
-	var ROUTER = merge({ "*": function() { load("/pages/home.md"); } }, PAGES);
-	R.on(ROUTER).resolve();
-});
+R = new Navigo(null, "!#", true);
+R.on({ "*": function() { load("/pages/home.md"); }}).resolve();
