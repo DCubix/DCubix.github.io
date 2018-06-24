@@ -14,10 +14,13 @@ var MD = new showdown.Converter({
 });
 var PAGES = {};
 var R = null;
+var LOCATION = (function(){ return window.location.href.replace("https:", "").replace("http:", ""); })();
+
+console.log(LOCATION);
 
 function load(url) {
 	req = new XMLHttpRequest();
-	req.open('GET', window.location.href+url);
+	req.open('GET', LOCATION + url);
 	req.responseType = "document";
 	req.onload = () => {
 		var html = MD.makeHtml(req.responseText);
@@ -51,7 +54,7 @@ function merge(obj1, obj2){
 	return obj3;
 }
 
-$.get(window.location.href+'pages', (data) => {
+$.get(LOCATION + "pages", (data) => {
 	var pgs = data.match(/href="([\w]+)/g) // pull out the hrefs
 				  .map((x) => x.replace('href="', '')); // clean up
 	for (var k in pgs) {
