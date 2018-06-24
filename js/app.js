@@ -61,14 +61,14 @@ function merge(obj1, obj2){
 	return obj3;
 }
 
-$.get("pages", (data) => {
+$.get("/pages/", (data) => {
 	var pgs = data.match(/href="([\w]+)/g) // pull out the hrefs
 				  .map((x) => x.replace('href="', '')); // clean up
 	for (var k in pgs) {
 		var page = pgs[k];
-		PAGES["/"+page] = function() { load("pages/"+page+".md"); };
+		PAGES["/"+page] = function() { load("/pages/"+page+".md"); };
 	}
 	R = new Navigo(null, "!#", true);
-	var ROUTER = merge({ "*": function() { load("pages/home.md"); } }, PAGES);
+	var ROUTER = merge({ "*": function() { load("/pages/home.md"); } }, PAGES);
 	R.on(ROUTER).resolve();
 });
