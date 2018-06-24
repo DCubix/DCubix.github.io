@@ -14,13 +14,20 @@ var MD = new showdown.Converter({
 });
 var PAGES = {};
 var R = null;
-var LOCATION = (function(){ return window.location.href.replace("https:", "").replace("http:", ""); })();
+var LOCATION = (function(){
+	var protocol = (
+		("https:" == document.location.protocol) 
+		? "https" 
+		: "http"
+	);
+	return protocol + window.location.href.replace("https:", "").replace("http:", "");
+})();
 
 console.log(LOCATION);
 
 function load(url) {
 	req = new XMLHttpRequest();
-	req.open('GET', LOCATION + url);
+	req.open('GET', url);
 	req.responseType = "document";
 	req.onload = () => {
 		var html = MD.makeHtml(req.responseText);
@@ -54,7 +61,7 @@ function merge(obj1, obj2){
 	return obj3;
 }
 
-$.get(LOCATION + "pages", (data) => {
+$.get("pages", (data) => {
 	var pgs = data.match(/href="([\w]+)/g) // pull out the hrefs
 				  .map((x) => x.replace('href="', '')); // clean up
 	for (var k in pgs) {
