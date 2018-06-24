@@ -51,7 +51,7 @@ function merge(obj1, obj2){
 	return obj3;
 }
 
-$.get('./pages', (data) => {
+$.get(window.location.href+'pages', (data) => {
 	var pgs = data.match(/href="([\w]+)/g) // pull out the hrefs
 				  .map((x) => x.replace('href="', '')); // clean up
 	for (var k in pgs) {
