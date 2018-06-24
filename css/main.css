@@ -34,6 +34,46 @@ hr {
 	box-sizing: border-box;
 }
 
+/* Extra small devices (phones, 600px and down) */
+@media only screen and (max-width: 600px) {
+	#main {
+		width: 96%;
+		padding: 0.4em;
+		box-sizing: border-box;
+	}
+} 
+
+/* Small devices (portrait tablets and large phones, 600px and up) */
+@media only screen and (min-width: 600px) {
+	#main {
+		width: 95%;
+	}
+} 
+
+/* Medium devices (landscape tablets, 768px and up) */
+@media only screen and (min-width: 768px) {
+	#main {
+		width: 90%;
+		padding: 1em;
+		margin: 0 auto;
+		box-sizing: border-box;
+	}
+} 
+
+/* Large devices (laptops/desktops, 992px and up) */
+@media only screen and (min-width: 992px) {
+	#main {
+		width: 85%;
+	}
+} 
+
+/* Extra large devices (large laptops and desktops, 1200px and up) */
+@media only screen and (min-width: 1200px) {
+	#main {
+		width: 80%;
+	}
+}
+
 div {
 	box-sizing: border-box;
 }
