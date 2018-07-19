@@ -27,7 +27,8 @@
 				crossorigin="anonymous">
 		</script>
 		<div id="main" class="w3-container">
-			<div class="w3-row header">
+			<div class="w3-row header" id="mainHeader">
+				<canvas class="headerCanvas" id="disp"></canvas>
 				<div class="w3-quarter w3-container">
 					<div class="round-image pop"
 						style="background-image: url('./img/eu.png');"
@@ -173,5 +174,86 @@
 		<script src="./js/showdown.js"></script>
 		<script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
 
+		<script type="text/javascript">
+			var mainHeader = document.getElementById("mainHeader");
+			var canvas = document.getElementById("disp");
+			var ctx = canvas.getContext("2d");
+
+			window.onresize = function() {
+				canvas.width = window.innerWidth;
+				canvas.height = mainHeader.clientHeight;
+			};
+			window.onresize();
+
+			var MAX_PARTICLES = 512;
+			var particles = [];
+
+			for (var i = 0; i < MAX_PARTICLES; i++) {
+				particles.push({
+					x: 0,
+					y: 0,
+					vx: 0,
+					dead: true
+				});
+			}
+
+			function redraw() {
+				ctx.globalCompositeOperation = "source-over";
+				ctx.fillStyle = "rgba(51, 51, 51, 0.2)";
+				ctx.fillRect(0, 0, canvas.width, canvas.height);
+				
+				ctx.globalCompositeOperation = "lighter";
+				ctx.fillStyle = "rgba(128, 128, 128, 0.4)";
+				for (var i = 0; i < MAX_PARTICLES; i++) {
+					var p = particles[i];
+					if (p.dead) continue;
+					ctx.beginPath();
+					ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+					ctx.fill();
+				}
+			}
+
+			function emit() {
+				var p = null;
+				for (var i = 0; i < MAX_PARTICLES; i++) {
+					if (particles[i].dead) {
+						p = i;
+						break;
+					}
+				}
+				
+				if (p === null) return;
+				
+				particles[p].dead = false;
+				particles[p].x = -10;
+				particles[p].y = 5 + Math.random() * (canvas.height - 10);
+				particles[p].vx = (Math.random() + 0.2) * 5.0;
+				particles[p].wave = Math.random() >= 0.5;
+			}
+			var time = 0;
+			function update() {
+				if (time++ >= 35) {
+					emit();
+					time = 0;
+				}
+				
+				for (var i = 0; i < MAX_PARTICLES; i++) {
+					var p = particles[i];
+					if (p.dead) continue;
+					p.x += p.vx;
+					
+					if (p.x > canvas.width+2 || p.y > canvas.height+2)
+						p.dead = true;
+				}
+			}
+
+			function loop() {
+				update();
+				redraw();
+				window.requestAnimationFrame(loop);
+			}
+
+			loop();
+		</script>
 	</body>
 </html>

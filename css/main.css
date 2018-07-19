@@ -144,6 +144,13 @@ pre code {
 	justify-content: flex-start;
 }
 
+.headerCanvas {
+	position: absolute;
+	left: 0;
+	top: 0;
+	z-index: -9;
+}
+
 .round-image {
 	height: 20vh;
 	width: 20vh;
