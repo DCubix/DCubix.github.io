@@ -5,7 +5,7 @@
 		<meta property="og:type" content="website" />
 		<meta property="og:url" content="https://dcubix.github.io/"/>
 		<meta property="og:title" content="Diego Lopes" />
-		<meta property="og:description" content="Graphics And Games Programmer" />
+		<meta property="og:description" content="Graphics Programmer" />
 
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,11 +13,10 @@
 		<title>Diego Lopes</title>
 
 		<link href="https://cdnjs.cloudflare.com/ajax/libs/foundicons/3.0.0/foundation-icons.css" rel="stylesheet">
-		<link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
 
 		<link rel="stylesheet" href="./css/main.css">
-		<link rel="stylesheet"
-			  href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/monokai.min.css">
+		<link rel="stylesheet" href="./css/layout.css">
+		<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/monokai.min.css">
 
 		<link rel="shortcut icon" href="./favicon.ico" />
 	</head>
@@ -26,158 +25,128 @@
 				integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8="
 				crossorigin="anonymous">
 		</script>
-		<div id="main" class="w3-container">
-			<div class="w3-row header" id="mainHeader">
+
+		<div id="main" class="container">
+			<div class="container header">
 				<canvas class="headerCanvas" id="disp"></canvas>
-				<div class="w3-quarter w3-container">
+
+				<div class="avatar">
 					<div class="round-image pop"
-						style="background-image: url('./img/eu.png');"
+						style="background-image: linear-gradient(rgba(229, 223, 197, 0.5), rgba(229, 223, 197, 0.4)), url('./img/eu.png');"
 						title="Me">
 					</div>
 				</div>
-				<div class="w3-rest w3-container">
+				<div class="container">
 					<h1 class="title"><b>Diego Lopes</b></h1>
 					<h4 class="sub-title">Graphics &amp; Games Programmer</h4>
-					<div class="social w3-bar">
-						<a class="w3-bar-item w3-xxlarge fi-social-github menu-btn"
+					<div class="social">
+						<a class="fi-social-github menu-btn"
 								 href="https://github.com/DCubix" title="GitHub" ></a>
-						<a class="w3-bar-item w3-xxlarge fi-social-twitter menu-btn"
+						<a class="fi-social-twitter menu-btn"
 								 href="https://twitter.com/dcubix" title="Twitter" ></a>
-						<a class="w3-bar-item w3-xxlarge fi-social-youtube menu-btn"
+						<a class="fi-social-youtube menu-btn"
 								 href="https://www.youtube.com/channel/UC8PT3EuTH7P_3D9K9ADCmow" title="YouTube" ></a>
-						<a class="w3-bar-item w3-xxlarge fi-mail menu-btn"
+						<a class="fi-mail menu-btn"
 								 href="mailto:diego95lopes@gmail.com" title="E-Mail" ></a>
 					</div>
 				</div>
 			</div>
-			<hr>
-			<div class="w3-row">
-				<div id="__ROOT__" class="w3-container">
-					<section>
-						<h2 id="welcome">Welcome!</h2>
-						<p>Hello!</p>
-						<p>I'm a programmer, I mostly make real-time applications (such as <i>games</i> and graphical visualizations).
-						I've been programming for about 10 years now.</p>
-						<p>Currently, I'm studying <b>Information Systems</b>.</p>
-					</section>
-					<section>
-						<h2 id="projects">Projects</h2>
-						<!-- <section>
-							<h3><a href="https://github.com/DCubix/glfx">GLFX</a></h3>
-							<div class="section-content">
-								<a target="_blank" href="./img/glfx.png">
-									<div class="thumb">
-										<img src="./img/glfx.png">
-									</div>
-								</a>
-								<span class="sep"></span>
-								<p>Framework for WebGL applications.
-										Wraps most of WebGL functions and provides several
-										types and functions for helping creating WebGL applications
-										with ease.</p>
-							</div>
-						</section> -->
-
-						<section>
-							<h3><a href="./projects/terrainGen">Terrain Generator</a></h3>
-							<div class="section-content">
-								<a target="_blank" href="./img/terrainGen.png">
-									<div class="thumb">
-										<img src="./img/terrainGen.png">
-									</div>
-								</a>
-								<span class="sep"></span>
-								<p>Terrain generator from images. Written in JavaScript and uses WebGL for 3D rendering.</p>
-							</div>
-						</section>
-
-						<section>
-							<h3><a href="https://github.com/DCubix/3D-Software-Renderer">3D Software Renderer</a></h3>
-							<div class="section-content">
-								<a target="_blank" href="./img/dragon.gif">
-									<div class="thumb">
-										<img src="./img/dragon.gif">
-									</div>
-								</a>
-								<a target="_blank" href="./img/monkey.gif">
-									<div class="thumb">
-										<img src="./img/monkey.gif">
-									</div>
-								</a>
-								<a target="_blank" href="./img/teapot.png">
-									<div class="thumb">
-										<img src="./img/teapot.png">
-									</div>
-								</a>
-								<span class="sep"></span>
-								<p>Fast 3D multi-threaded software renderer written in C++. It supports shaders and textures.</p>
-							</div>
-						</section>
-
-						<section>
-							<h3><a href="https://codepen.io/TwisterGE/pen/rdrpzG">Logo-Assembly</a></h3>
-							<div class="section-content">
-								<a target="_blank" href="./img/logoasm.gif">
-									<div class="thumb">
-										<img src="./img/logoasm.gif">
-									</div>
-								</a>
-								<span class="sep"></span>
-								<p>A custom compiled Assembly language for Logo/Turtle Graphics programming. Written in TypeScript and using HTML5 canvas for drawing.</p>
-							</div>
-						</section>
-
-						<section>
-							<h3><a href="https://github.com/DCubix/engine-cpp">3D Game Engine</a></h3>
-							<div class="section-content">
-								<a target="_blank" href="./img/editor.png">
-									<div class="thumb">
-										<img src="./img/editor.png">
-									</div>
-								</a>
-								<a target="_blank" href="./img/engine.png">
-									<div class="thumb">
-										<img src="./img/engine.png">
-									</div>
-								</a>
-								<span class="sep"></span>
-								<p>Advanced 3D game engine focused on graphics and performance.</p>
-							</div>
-						</section>
-
-						<section>
-							<h3>Coolant Analysis App</h3>
-							<div class="section-content">
-								<a target="_blank" href="./img/app0.png">
-									<div class="thumb">
-										<img src="./img/app0.png">
-									</div>
-								</a>
-								<a target="_blank" href="./img/app1.png">
-									<div class="thumb">
-										<img src="./img/app1.png">
-									</div>
-								</a>
-								<span class="sep"></span>
-								<p>An app for analysing coolant fluids and diagnosing equipment.</p>
-							</div>
-						</section>
+			<div class="container">
+				<section>
+					<h2 id="welcome">Hello!</h2>
+					<p>I'm a programmer, I mostly make real-time applications (such as <i>games</i> and graphical visualizations).
+					I've been programming for about 10 years now.</p>
+					<p>Currently, I'm studying <b>Information Systems</b>.</p>
+				</section>
+				<section>
+					<h2 id="projects">Projects</h2>
+					<section class="sub-card">
+						<h3><a class="link" href="https://github.com/DCubix/3D-Software-Renderer">3D Software Rasterizer</a></h3>
+						<div class="hcontainer">
+							<a target="_blank" href="./img/dragon.gif">
+								<div class="imgcard">
+									<img src="./img/dragon.gif">
+								</div>
+							</a>
+							<a target="_blank" href="./img/monkey.gif">
+								<div class="imgcard">
+									<img src="./img/monkey.gif">
+								</div>
+							</a>
+							<a target="_blank" href="./img/teapot.png">
+								<div class="imgcard">
+									<img src="./img/teapot.png">
+								</div>
+							</a>
+						</div>
+						<div class="container">
+							<p>Fast 3D multi-threaded CPU rasterizer written in C++. It supports shaders, textures and more.</p>
+						</div>
 					</section>
 
-					<section>
-						<h2 id="skills">Skills</h2>
+					<section class="sub-card">
+						<h3><a class="link" href="https://github.com/DCubix/Twist">Twist</a></h3>
+						<div class="hcontainer">
+							<a target="_blank" href="./img/twist.png">
+								<div class="imgcard">
+									<img src="./img/twist.png">
+								</div>
+							</a>
+						</div>
+						<div class="container">
+							<p>Node-based audio synthesizer. A tool for making sound effects and soundtracks.</p>
+						</div>
+					</section>
+
+					<section class="sub-card">
+						<h3><a class="link" href="https://github.com/DCubix/engine-cpp">3D Game Engine</a></h3>
+						<div class="hcontainer">
+							<a target="_blank" href="./img/editor.png">
+								<div class="imgcard">
+									<img src="./img/editor.png">
+								</div>
+							</a>
+							<a target="_blank" href="./img/engine.png">
+								<div class="imgcard">
+									<img src="./img/engine.png">
+								</div>
+							</a>
+						</div>
+						<div class="container">
+							<p>Advanced 3D game engine focused on graphics and performance.</p>
+						</div>
+					</section>
+
+
+					<section class="sub-card">
+						<h3><a class="link" href="https://codepen.io/TwisterGE/pen/rdrpzG">Logo-Assembly</a></h3>
+						<div class="hcontainer">
+							<a target="_blank" href="./img/logoasm.gif">
+								<div class="imgcard">
+									<img src="./img/logoasm.gif">
+								</div>
+							</a>
+						</div>
+						<div class="container">
+							<p>A custom compiled Assembly language for Logo/Turtle Graphics programming. Written in TypeScript and using HTML5 canvas for drawing.</p>
+						</div>
+					</section>
+				</section>
+
+				<section>
+					<h2 id="skills">Skills</h2>
+					<section class="sub-card">
 						<h3>Programming Languages</h3>
-						<p>Java, JavaScript, TypeScript, Python, Lua, C, C++, Rust, SQL, GLSL</p>
+						<p class="tab">Java, JavaScript, TypeScript, Python, Lua, C, C++, Rust, SQL, GLSL</p>
 						<h3>Markup Languages</h3>
-						<p>HTML, CSS, Markdown</p>
+						<p class="tab">HTML, CSS, Markdown</p>
 						<h3>Technologies</h3>
-						<p>OpenGL, ReactJS, React-Native, CMake, Git, Firebase, Android, SQLServer</p>
+						<p class="tab">OpenGL, ReactJS, React-Native, CMake, Git, Firebase, Android, SQLServer</p>
 						<h3>Languages</h3>
-						<p>Portuguese (Brazil), English, Spanish</p>
+						<p class="tab">Portuguese (Brazil), English, Spanish</p>
 					</section>
-				</div>
+				</section>
 			</div>
-			<hr>
 		</div>
 		
 		<script src="//unpkg.com/navigo@6"></script>

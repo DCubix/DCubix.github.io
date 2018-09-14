@@ -1,139 +1,113 @@
+@import url('https://fonts.googleapis.com/css?family=Roboto');
+@import url('https://fonts.googleapis.com/css?family=Montserrat');
+
 body {
 	margin: 3vw;
-	background: #333;
+	background: #252120;
 	background-attachment: fixed;
 }
 
-p, h1, h2, h3, h4, h5, h6, span, li, .w3-button {
-	color: #eee;
-}
-
 .menu-btn {
-	color: #eee;
+	text-decoration: none !important;
+	color: #E5DFC5;
+	font-size: 18pt;
+	margin-right: 1vw;
 	transition: 200ms;
 }
 
 .menu-btn:hover {
 	margin-top: -2px;
-	text-shadow: 0 3px 1px #222;
-	color: #eee;
+	text-shadow: 0 3px 0 #3a3331;
+	color: #E5DFC5;
 	background: transparent;
 }
 
 .card, section {
-	background: rgba(0,0,0,.5);
-	box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
+	background: #3a3331;
+	box-shadow: 0 2px 6px 0 rgba(0,0,0,0.4);
+	border-radius: 3px;
 	padding: 1em;
 	box-sizing: border-box;
 	margin-bottom: 2vh;
+	overflow: hidden;
+}
+
+.sub-card {
+	background: #252120;
+	box-shadow: inset 0 2px 6px 0 rgba(0,0,0,0.4);
+	border-radius: 3px;
+	padding: 1em;
+	box-sizing: border-box;
+	margin-bottom: 2vh;
+	overflow: hidden;
 }
 
 .imgcard {
-	box-shadow: 0 4px 8px 0 rgba(0,0,0,0.2);
-	border-radius: 2px;
-	margin: 6px;
-	box-sizing: border-box;
-	overflow: hidden;
-}
-
-.thumb {
-	width: 10vw;
-	height: 14vh;
+	width: 16vw;
+	height: 12vh;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	overflow: hidden;
+	margin: 6px;
 	border-radius: 2px;
-	background: #000;
-}
-
-.sep {
-	margin-right: 25px;
-}
-
-.thumb img {
-	width: 100%;
-	height: auto;
-}
-
-.section-content {
-	display: flex;
-}
-
-hr {
-	visibility: hidden;
-}
-
-#main {
-	width: 80%;
-	padding: 1em;
-	margin: 0 auto;
 	box-sizing: border-box;
+	
+	box-shadow: 0 4px 6px 0 rgba(0,0,0,0.4);
+	background: #E5DFC5;
+	overflow: hidden;
 }
 
-/* Extra small devices (phones, 500px and down) */
-@media only screen and (max-width: 500px) {
-	#main {
-		width: 100%;
-		padding: 0;
-		margin: 0;
-		box-sizing: border-box;
-	}
-
-	.round-image {
-		margin: auto;
-	}
-
-	.w3-container {
-		padding: 0;
-	}
+.imgcard img {
+	width: 110%;
+	height: auto;
+	transition: opacity 200ms;
 }
 
-/* Small devices (portrait tablets and large phones, 600px and up) */
-@media only screen and (min-width: 600px) {
-	#main {
-		width: 98%;
-		padding: 0.6em;
-	}
-} 
-
-/* Medium devices (landscape tablets, 768px and up) */
-@media only screen and (min-width: 768px) {
-	#main {
-		width: 90%;
-		padding: 1em;
-		margin: 0 auto;
-		box-sizing: border-box;
-	}
-} 
-
-/* Large devices (laptops/desktops, 992px and up) */
-@media only screen and (min-width: 992px) {
-	#main {
-		width: 87%;
-	}
-} 
-
-/* Extra large devices (large laptops and desktops, 1200px and up) */
-@media only screen and (min-width: 1200px) {
-	#main {
-		width: 80%;
-	}
+.imgcard img:hover {
+	opacity: 0.75;
 }
 
 div {
 	box-sizing: border-box;
 }
 
-* {
-	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif
+.link {
+	font-family: 'Roboto', sans-serif;
+	font-weight: bold;
+}
+
+/* .link::after {
+	font-family: "foundation-icons";
+	font-style: normal;
+	font-weight: normal;
+	font-variant: normal;
+	text-transform: none;
+	line-height: 1;
+	-webkit-font-smoothing: antialiased;
+	display: inline-block;
+	text-decoration: none;
+	content: "\f165";
+	opacity: 0.5;
+} */
+
+a, p, span, b, i, u, li {
+	font-family: 'Montserrat', sans-serif;
+	color: #E5DFC5;
+}
+
+h1, h2, h3, h4, h5, h6 {
+	font-family: 'Roboto', sans-serif;
+	font-weight: bold;
+	margin-top: 1vh;
+	margin-bottom: 1vh;
+	color: #E5DFC5;
 }
 
 pre code {
 	border-radius: 5px;
 	font-family: 'Courier New', Courier, monospace;
-	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.23);
-	padding: 10px;
+	box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
+	padding: 8px;
 	box-sizing: border-box;
 }
 
@@ -175,8 +149,13 @@ pre code {
 	opacity: 0;
 }
 
-.title, .sub-title {
-	font-style: italic;
+.title {
+	font-weight: bold;
+}
+
+.sub-title {
+	font-weight: normal;
+	color: #afaa99;
 }
 
 @keyframes appear { 
@@ -205,11 +184,11 @@ pre code {
 .social a:nth-child(4) { animation-delay: 400ms }
 
 a {
-	color: #247cf3;
+	color: #91C7A9;
 	text-decoration: none;
 	transition: all 300ms;
 }
 
 a:hover {
-	border-bottom: 2px solid #247cf3;
+	text-decoration: underline;
 }
