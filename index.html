@@ -27,7 +27,7 @@
 		</script>
 
 		<div id="main" class="container">
-			<div class="container header">
+			<div class="container header" id="mainHeader">
 				<canvas class="headerCanvas" id="disp"></canvas>
 
 				<div class="avatar">
@@ -171,6 +171,7 @@
 				particles.push({
 					x: 0,
 					y: 0,
+					z: 0,
 					vx: 0,
 					dead: true
 				});
@@ -178,16 +179,17 @@
 
 			function redraw() {
 				ctx.globalCompositeOperation = "source-over";
-				ctx.fillStyle = "rgba(51, 51, 51, 0.2)";
+				ctx.fillStyle = "rgb(37, 33, 32, 0.5)";
 				ctx.fillRect(0, 0, canvas.width, canvas.height);
 				
 				ctx.globalCompositeOperation = "lighter";
-				ctx.fillStyle = "rgba(128, 128, 128, 0.4)";
+				ctx.fillStyle = "rgba(229, 223, 197, 0.5)";
 				for (var i = 0; i < MAX_PARTICLES; i++) {
 					var p = particles[i];
 					if (p.dead) continue;
+
 					ctx.beginPath();
-					ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+					ctx.arc(p.x, p.y, p.z, 0, Math.PI * 2);
 					ctx.fill();
 				}
 			}
@@ -206,12 +208,14 @@
 				particles[p].dead = false;
 				particles[p].x = -10;
 				particles[p].y = 5 + Math.random() * (canvas.height - 10);
+				particles[p].z = (Math.random() + 0.5) * 1.0;
 				particles[p].vx = (Math.random() + 0.2) * 5.0;
 				particles[p].wave = Math.random() >= 0.5;
 			}
 			var time = 0;
 			function update() {
 				if (time++ >= 35) {
+					emit();
 					emit();
 					time = 0;
 				}
