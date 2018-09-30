@@ -1,0 +1,3 @@
+[submodule "wiktor"]
+	path = wiktor
+	url = https://github.com/wiktor-wiki/wiktor
