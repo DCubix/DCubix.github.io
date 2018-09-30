@@ -63,19 +63,19 @@
 					<section class="sub-card">
 						<h3><a class="link" href="https://github.com/DCubix/3D-Software-Renderer">3D Software Rasterizer</a></h3>
 						<div class="hcontainer">
-							<a target="_blank" href="./img/dragon.gif">
+							<a target="_blank" href="https://i.postimg.cc/yddgK0k8/dragon.gif">
 								<div class="imgcard">
-									<img src="./img/dragon.gif">
+									<img src="https://i.postimg.cc/yddgK0k8/dragon.gif">
 								</div>
 							</a>
-							<a target="_blank" href="./img/monkey.gif">
+							<a target="_blank" href="https://i.postimg.cc/h4mxtb2X/monkey.gif">
 								<div class="imgcard">
-									<img src="./img/monkey.gif">
+									<img src="https://i.postimg.cc/h4mxtb2X/monkey.gif">
 								</div>
 							</a>
-							<a target="_blank" href="./img/teapot.png">
+							<a target="_blank" href="https://i.postimg.cc/fW1KHRr9/teapot.png">
 								<div class="imgcard">
-									<img src="./img/teapot.png">
+									<img src="https://i.postimg.cc/fW1KHRr9/teapot.png">
 								</div>
 							</a>
 						</div>
@@ -87,9 +87,9 @@
 					<section class="sub-card">
 						<h3><a class="link" href="https://github.com/DCubix/Twist">Twist</a></h3>
 						<div class="hcontainer">
-							<a target="_blank" href="./img/twist.png">
+							<a target="_blank" href="https://i.postimg.cc/KYcrKkRd/twist.png">
 								<div class="imgcard">
-									<img src="./img/twist.png">
+									<img src="https://i.postimg.cc/KYcrKkRd/twist.png">
 								</div>
 							</a>
 						</div>
@@ -101,14 +101,14 @@
 					<section class="sub-card">
 						<h3><a class="link" href="https://github.com/DCubix/engine-cpp">3D Game Engine</a></h3>
 						<div class="hcontainer">
-							<a target="_blank" href="./img/editor.png">
+							<a target="_blank" href="https://i.postimg.cc/fRDYFtjJ/editor.png">
 								<div class="imgcard">
-									<img src="./img/editor.png">
+									<img src="https://i.postimg.cc/fRDYFtjJ/editor.png">
 								</div>
 							</a>
-							<a target="_blank" href="./img/engine.png">
+							<a target="_blank" href="https://i.postimg.cc/DzCQ1vGm/engine.png">
 								<div class="imgcard">
-									<img src="./img/engine.png">
+									<img src="https://i.postimg.cc/DzCQ1vGm/engine.png">
 								</div>
 							</a>
 						</div>
@@ -121,9 +121,9 @@
 					<section class="sub-card">
 						<h3><a class="link" href="https://codepen.io/TwisterGE/pen/rdrpzG">Logo-Assembly</a></h3>
 						<div class="hcontainer">
-							<a target="_blank" href="./img/logoasm.gif">
+							<a target="_blank" href="https://i.postimg.cc/G2VkSXqC/logoasm.gif">
 								<div class="imgcard">
-									<img src="./img/logoasm.gif">
+									<img src="https://i.postimg.cc/G2VkSXqC/logoasm.gif">
 								</div>
 							</a>
 						</div>
@@ -148,7 +148,7 @@
 				</section>
 			</div>
 		</div>
-		
+
 		<script src="//unpkg.com/navigo@6"></script>
 		<script src="./js/showdown.js"></script>
 		<script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
@@ -181,7 +181,7 @@
 				ctx.globalCompositeOperation = "source-over";
 				ctx.fillStyle = "rgb(37, 33, 32, 0.5)";
 				ctx.fillRect(0, 0, canvas.width, canvas.height);
-				
+
 				ctx.globalCompositeOperation = "lighter";
 				ctx.fillStyle = "rgba(229, 223, 197, 0.5)";
 				for (var i = 0; i < MAX_PARTICLES; i++) {
@@ -202,9 +202,9 @@
 						break;
 					}
 				}
-				
+
 				if (p === null) return;
-				
+
 				particles[p].dead = false;
 				particles[p].x = -10;
 				particles[p].y = 5 + Math.random() * (canvas.height - 10);
@@ -219,12 +219,12 @@
 					emit();
 					time = 0;
 				}
-				
+
 				for (var i = 0; i < MAX_PARTICLES; i++) {
 					var p = particles[i];
 					if (p.dead) continue;
 					p.x += p.vx;
-					
+
 					if (p.x > canvas.width+2 || p.y > canvas.height+2)
 						p.dead = true;
 				}
