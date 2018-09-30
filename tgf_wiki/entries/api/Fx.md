@@ -3,12 +3,14 @@ The `Fx` object is a global variable (can be accessed everywhere in your script)
 ### System Functions
 |Function|Description|
 -----|-----
-`Fx:color(colorName)` | Gets a color index from a color name. Possible `colorName` values: `black`, `darkgray`, `gray`, `lightgray`, `white`, `lightbrown`, `brown`, `darkbrown`, `yellow`, `orange`, `red`, `purple`,	`darkblue`, `blue`, `green`, `darkgreen`
+`Fx:color(colorName)` | Gets a color index from a color name. Possible `colorName` values: `black`, `darkgray`, `gray`, `lightgray`, `white`, `lightbrown`, `brown`, `darkbrown`, `yellow`, `orange`, `red`, `purple`,	`darkblue`, `blue`, `green`, `darkgreen`.
+`Fx:remap(oldColor, newColor)` | Remaps a color to another.
 `Fx:flip` | Flips the screen buffer to present it to the screen.
 `Fx:resize(w, h, scale)` | Resizes the window and screen buffer. The window size equals to `(w/h) * scale`.
 `Fx:title([titleString])` | Gets/Sets the window title. When no parameter is passed, this function is treated as a getter.
 `Fx:quit` | Exits the application.
 `Fx:createImage(w, h)` | Creates an empty [Image](/#api:Image).
+`Fx:createAnimator(img, rows, cols)` | Creates a new [Animator](/#api:Animator).
 `Fx:loadImage(fileName, [ditherLevel])` | Loads an image from a file and reduces its colors to fit TGF's 16 color palette. When `ditherLevel` is not 0, the converter will use a dithering function to smooth the color transitions. Possible values for `ditherLevel` are: `0`, `2`, `3`, `4` and `8`.
 
 ### Input Functions
