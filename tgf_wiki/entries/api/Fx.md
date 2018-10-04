@@ -4,7 +4,6 @@ The `Fx` object is a global variable (can be accessed everywhere in your script)
 |Function|Description|
 -----|-----
 `Fx:color(colorName)` | Gets a color index from a color name. Possible `colorName` values: `black`, `darkgray`, `gray`, `lightgray`, `white`, `lightbrown`, `brown`, `darkbrown`, `yellow`, `orange`, `red`, `purple`,	`darkblue`, `blue`, `green`, `darkgreen`.
-`Fx:remap(oldColor, newColor)` | Remaps a color to another.
 `Fx:flip` | Flips the screen buffer to present it to the screen.
 `Fx:resize(w, h, scale)` | Resizes the window and screen buffer. The window size equals to `(w/h) * scale`.
 `Fx:title([titleString])` | Gets/Sets the window title. When no parameter is passed, this function is treated as a getter.
