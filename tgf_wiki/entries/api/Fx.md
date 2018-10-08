@@ -11,6 +11,8 @@ The `Fx` object is a global variable (can be accessed everywhere in your script)
 `Fx:createImage(w, h)` | Creates an empty [Image](/#api:Image).
 `Fx:createAnimator(img, rows, cols)` | Creates a new [Animator](/#api:Animator).
 `Fx:loadImage(fileName, [ditherLevel])` | Loads an image from a file and reduces its colors to fit TGF's 16 color palette. When `ditherLevel` is not 0, the converter will use a dithering function to smooth the color transitions. Possible values for `ditherLevel` are: `0`, `2`, `3`, `4` and `8`.
+`Fx:createSound()` | Creates a new [Sound](/#api:Sound).
+`Fx:playSound([channel], sound, loop)` | Plays a sound.
 
 ### Input Functions
 |Function|Description|
