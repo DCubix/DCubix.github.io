@@ -6,6 +6,7 @@ The `Graphics` class is used to draw on [Images](/#api:Image). For example, the 
 `Graphics.new(target)` | Creates a new Graphics object for `target`.
 `Graphics:clear(color)` | Clears the image (sets all pixels) to a `color`.
 `Graphics:remap(oldColor, newColor)` | Remaps a color to another. If no arguments are passed, the mappings are reset.
+`Graphics:remap(newColor)` | Remaps everything that isn't transparent to `newColor`.
 `Graphics:pixel(x, y, color)` | Draws a single pixel.
 `Graphics:line(x1, y1, x2, y2, color)` | Draws a line.
 `Graphics:rect(x, y, w, h, color, fill)` | Draws a rectangle.
