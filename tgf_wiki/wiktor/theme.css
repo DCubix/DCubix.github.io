@@ -21,13 +21,14 @@
 	--fg-primary: #252120;
 	--bg-primary: #E5DFC5;
 	--fg-secondary: #3a3331;
-	--bg-secondary: #E5DFC5;
-	--accent: #91C7A9;
+	--bg-secondary: rgb(216, 210, 182);
+	--accent: rgb(84, 139, 109);
 	--entry-border: 0 0 1px 0 var(--fg-secondary);
 	--c-comment: #656d78;
 	--c-punctuation: #656d78;
  }
-/* Responsive -------------------------------------------------------------- */
+
+ /* Responsive -------------------------------------------------------------- */
 
 * {
 	box-sizing: border-box;
@@ -108,26 +109,24 @@
 	}
 	td {
 	   text-align: left;
-	   word-break: break-all;
-	   padding: 10px 0;
-	   margin-bottom: 10px;
+	   margin-left: 20px;
 	}
 	tr {
 	   display: flex;
 	   flex-flow: column;
-	   padding-bottom: 10px;
+	   padding: 10px 0;
+	}
+	tr:first-child {
+	   padding-top: 0;
 	}
 	tr:last-child {
+	   padding-bottom: 0;
 	   border-bottom: none;
 	}
 	.rd-th {
 	   font-weight: bold;
-	   display: flex;
-	   min-width: 33%;
-	   width: 33%;
-	   padding-right: 10px;
-	   float: left;
-	   height: 101%
+	   color: var(--accent);
+	   margin-left: -20px;
 	}
  }
 
@@ -186,6 +185,7 @@
 	}
 	.table-box table {
 	   width: 99%;
+	   margin: 20px auto;
 	}
 	.rd-th {
 	   display: none;
@@ -355,7 +355,6 @@
 
  .table-box table {
 	color: var(--fg-primary);
-	margin: 20px auto;
 	border-collapse: collapse;
  }
 
@@ -393,6 +392,7 @@
 
  pre code {
 	font-family: var(--font-code);
+	color: var(--fg-primary);
 	font-weight: 400;
 	padding: 0;
 	border: none;

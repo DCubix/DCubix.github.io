@@ -4,7 +4,7 @@
 */
 
 "use strict";
-var version = "0.4.0";
+var version = "0.4.2";
 
 var list_opened = "fa fa-caret-down";
 var list_closed = "fa fa-caret-right";
@@ -36,12 +36,23 @@ function checkpath(a, b, elem) {
    return true;
 }
 
+function scrollUnderHeader(item) {
+   item.scrollIntoView();
+   var offset = -$(item)
+      .closest("entry")
+      .children(".header")
+      .outerHeight();
+
+   $("content")[0].scrollBy(0, offset);
+   $("body")[0].scrollBy(0, offset);
+}
+
 function openpath(path) {
    var all = $("entry").filter((_, e) => checkpath(path, e.id, e));
 
    all.filter(":hidden").appendTo("content");
    all.fadeIn(fadetime, function() {
-      ($("[id='" + path + "']")[0] || all[0]).scrollIntoView();
+      scrollUnderHeader($("[id='" + path.split(subsep)[1] + "']")[0] || all[0]);
    });
 
    var expandable = path.split(subsep)[0].split(pathsep);
@@ -108,8 +119,6 @@ function mktree(entries, path = []) {
       Object.keys(entries).forEach(key => {
          var inner = $("<li></li>");
 
-         var link = mkpath(path, key);
-
          $(
             "<a class='pointer' name='" +
                key +
@@ -166,6 +175,8 @@ function mktree(entries, path = []) {
 }
 
 function mkentry(path, after) {
+   path = path.toLowerCase();
+
    if (cache[path]) {
       if (after) after(path);
       return;
@@ -205,40 +216,31 @@ function mkentry(path, after) {
          link.prependTo(entryHtml);
          entryHtml.appendTo("content");
 
-         $("code", entryHtml).each((_, code) => highlight(code));
+         $("code", entryHtml).each(
+            (_, code) => typeof highlight != "undefined" && highlight(code)
+         );
 
-         var entry_links = $("a", entryHtml)
-            .filter((_, e) => !e.hash && e.href.split("?")[1])
-            .attr("onclick", "return false");
-
-         entry_links.each((_, e) => {
-            $(e).click(() => {
-               mkentry(e.href.split("?")[1], openpath);
-               history.pushState("", "", pathpref + e.href.split("?")[1]);
+         $("a", entryHtml)
+            .filter((_, e) => !e.hash && e.href.split(pathpref)[1])
+            .attr("onclick", "return false")
+            .each((_, e) => {
+               $(e).click(() => {
+                  mkentry(e.href.split(pathpref)[1], openpath);
+                  history.pushState(
+                     "",
+                     "",
+                     pathpref + e.href.split(pathpref)[1]
+                  );
+               });
             });
-         });
 
-         var anchors = $("a", entryHtml)
+         $("a", entryHtml)
             .filter((_, e) => e.hash)
             .each((_, e) => {
                $(e).attr("onclick", "return false");
                $(e).click(() => {
                   var el = $(e.hash)[0];
-                  el.scrollIntoView();
-                  $("content")[0].scrollBy(
-                     0,
-                     -$(e)
-                        .closest("entry")
-                        .children(".header")
-                        .outerHeight()
-                  );
-                  $("body")[0].scrollBy(
-                     0,
-                     -$(e)
-                        .closest("entry")
-                        .children(".header")
-                        .outerHeight()
-                  );
+                  scrollUnderHeader(el);
                });
             });
 
@@ -290,7 +292,7 @@ function wiktor(landing) {
          });
       }
 
-      if ($("links ul")[0] && $("links ul")[0].childElementCount == 0) {
+      if (!($("links ul")[0] && $("links ul")[0].childElementCount != 0)) {
          $("#empty").show();
       }
       $("body").fadeIn(fadetime);
