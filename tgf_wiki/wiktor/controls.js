@@ -67,5 +67,3 @@ function theme() {
 }
 
 addButton("fa fa-palette", theme);
-
-localStorage.setItem('entry_root', '')
