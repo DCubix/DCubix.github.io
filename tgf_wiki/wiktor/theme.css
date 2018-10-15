@@ -248,6 +248,7 @@
 
  nav a {
 	color: var(--fg-secondary);
+	text-transform: capitalize;
  }
 
  nav a i.fa {
