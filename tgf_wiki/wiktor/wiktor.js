@@ -194,7 +194,7 @@ function mkentry(path, after) {
       function(entry) {
          var title = path.replace(new RegExp(pathsep, "g"), titlesep);
          if (entry_root.length > 0) title.replace(entry_root + titlesep, "");
-         title.replace("_", " ");
+         title = title.replace("_", " ");
 
          var link = $("<h1 class='header'>").append(
             $(nullAnchor(pathpref + path) + title + "</a><close></close>").on(
