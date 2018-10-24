@@ -22,10 +22,17 @@ The `Graphics` class is used to draw on [Images](/?api&Image). For example, the 
 `Graphics:end3D()` | Ends the 3D rendering (displays all the triangles).
 `Graphics:bind(image)` | Binds an Image as a texture.
 `Graphics:model(model)` | Adds a 3D [Model](/?api&Model) to the vertex buffer.
+`Graphics:matrixMode(mode)` | Specify the current matrix to be modified by the matrix operations. Possible values: `modelView` and `projection`.
+`Graphics:identity()` | Loads an identity matrix.
+`Graphics:translate(x, y, z)` | Translates the world by `x, y, z` units.
+`Graphics:rotate(angle, x, y, z)` | Rotates the world by an `angle` around an axis defined by `x, y, z`.
+`Graphics:scale(x, y, z)` | Scales the world by `x, y, z`.
+`Graphics:perspective(fov, aspect, znear, zfar)` | Loads a perspective matrix. `fov` is expected to be in radians.
+`Graphics:ortho(left, right, bottom, top, znear, zfar)` | Loads an orthographic matrix.
+`Graphics:lighting(enabled)` | Enables/Disables lighting.
+`Graphics:lightDirection(x, y, z)` | Enables/Disables lighting.
 
 ### Properties
 |Property|Description|
 -----|-----
 `Graphics.target` | Gets/Sets the Image target for this Graphics context. `Beware! If you set the target of the main graphics object, and don't save it, bad things can happen!`
-`Graphics.projection` | Projection [MatrixStack](/?api&MatrixStack).
-`Graphics.modelView` | Model+View matrix stack.
