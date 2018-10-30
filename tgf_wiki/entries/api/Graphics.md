@@ -16,7 +16,7 @@ The `Graphics` class is used to draw on [Images](/?api&Image). For example, the 
 `Graphics:text(font, text, x, y)` | Draws a string. See [Font](/?api&Font).
 `Graphics:clip([x1, y1, x2, y2])` | Sets the clipping region. The clipping region is a bounding box that is used to discard pixels when drawing, when no parameters are specified, the clipping region is reset. Notice that, the parameters must be the min and max extents and not position and size!
 `Graphics:transparency([color])` | Sets the palette color used for transparency. If no parameters are passed, the transparency key is reset.
-`Graphics:begin3D()` | Begin 3D rendering. (Never forget this! It clears the vertex buffer).
+`Graphics:begin3D([polygonMode])` | Begin 3D rendering. (Never forget this! It clears the vertex buffer). `polygonMode` is: `triangles`, `wireframe`, `lines` or `points`.
 `Graphics:color(col)` | Set the color of the next triangle.
 `Graphics:vertex(x, y, z, u, v)` | Adds a vertex to the vertex buffer.
 `Graphics:end3D()` | Ends the 3D rendering (displays all the triangles).
