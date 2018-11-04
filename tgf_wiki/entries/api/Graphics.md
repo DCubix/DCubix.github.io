@@ -30,7 +30,7 @@ The `Graphics` class is used to draw on [Images](/?api&Image). For example, the 
 `Graphics:perspective(fov, aspect, znear, zfar)` | Loads a perspective matrix. `fov` is expected to be in radians.
 `Graphics:ortho(left, right, bottom, top, znear, zfar)` | Loads an orthographic matrix.
 `Graphics:light(enabled)` | Enables/Disables lighting.
-`Graphics:light(x, y, z)` | Enables/Disables lighting.
+`Graphics:light(x, y, z)` | Sets the light direction.
 
 ### Properties
 |Property|Description|
