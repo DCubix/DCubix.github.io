@@ -10,7 +10,7 @@ body {
 .menu-btn {
 	text-decoration: none !important;
 	color: #E5DFC5;
-	font-size: 18pt;
+	font-size: 22pt;
 	margin-right: 1vw;
 	transition: 200ms;
 }
@@ -43,28 +43,29 @@ body {
 }
 
 .imgcard {
-	width: 16vw;
 	height: 12vh;
+	width: auto;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	margin: 6px;
-	border-radius: 2px;
+	margin: 4px;
+	border-radius: 4px;
 	box-sizing: border-box;
 
 	box-shadow: 0 4px 6px 0 rgba(0,0,0,0.4);
-	background: #E5DFC5;
+	background: black;
 	overflow: hidden;
 }
 
 .imgcard img {
-	width: 110%;
+	width: 100%;
 	height: auto;
-	transition: opacity 200ms;
+	transition: all 200ms;
 }
 
 .imgcard img:hover {
-	opacity: 0.75;
+	width: 120%;
+	height: auto;
 }
 
 div {
@@ -116,6 +117,8 @@ pre code {
 	flex-wrap: wrap;
 	align-items: center;
 	justify-content: flex-start;
+	padding: 15px;
+	box-sizing: border-box;
 }
 
 .headerCanvas {
