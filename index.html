@@ -16,7 +16,7 @@
 
 		<link rel="stylesheet" href="./css/main.css" />
 		<link rel="stylesheet" href="./css/layout.css" />
-		<link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/monokai.min.css" />
+		<!-- <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/monokai.min.css" /> -->
 
 		<link rel="shortcut icon" href="./favicon.ico" />
 	</head>
@@ -30,7 +30,7 @@
 				<canvas class="headerCanvas" id="disp"></canvas>
 
 				<div class="avatar">
-					<div class="round-image pop"
+					<div id="avatar" class="round-image pop"
 						style="background-image: linear-gradient(rgba(229, 223, 197, 0.5), rgba(229, 223, 197, 0.4)), url('./img/eu.png');"
 						title="Me">
 					</div>
@@ -145,9 +145,9 @@
 			</div>
 		</div>
 
-		<script src="//unpkg.com/navigo@6"></script>
-		<script src="./js/showdown.js"></script>
-		<script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+		<!-- <script src="//unpkg.com/navigo@6"></script> -->
+		<!-- <script src="./js/showdown.js"></script> -->
+		<!-- <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script> -->
 
 		<script type="text/javascript">
 			let mainHeader = document.getElementById("mainHeader");
@@ -230,7 +230,7 @@
 				}
 			}
 
-			function emit() {
+			function emitParticle(x, y, dir) {
 				let p = null;
 				for (let i = 0; i < MAX_PARTICLES; i++) {
 					if (particles[i].dead) {
@@ -241,6 +241,34 @@
 
 				if (p === null) return;
 
+				particles[p].dead = false;
+				particles[p].px = particles[p].x = x;
+				particles[p].py = particles[p].y = y;
+				particles[p].dirChangeRate = ~~(5.0 + Math.random() * 20.0);
+				particles[p].dirTime = particles[p].dirChangeRate + 1;
+				particles[p].speed = 2.0 + Math.random();
+				particles[p].dir = dir;
+			}
+
+			window.onmousedown = function(e) {
+				e = e || window.event;
+				let id = (e.target || e.srcElement).id;
+				if (id !== "avatar") return;
+
+				let avatar = document.getElementById(id);
+				let rect = avatar.getBoundingClientRect();
+				let x = rect.left + avatar.clientWidth / 2;
+				let y = rect.top + avatar.clientHeight / 2;
+
+				//let cr = canvas.getBoundingClientRect();
+				//let x = e.clientX - cr.left;
+				//let y = e.clientY - cr.top;
+				for (let i = 0; i < 50; i++) {
+					emitParticle(x, y, ~~(Math.random() * (Directions.length-1)));
+				}
+			};
+
+			function emit() {
 				let side = ~~Math.floor(Math.random() * 4);
 
 				let x = 0,
@@ -268,13 +296,7 @@
 					break;
 				}
 
-				particles[p].dead = false;
-				particles[p].px = particles[p].x = x;
-				particles[p].py = particles[p].y = y;
-				particles[p].dirChangeRate = ~~(20.0 + Math.random() * 20.0);
-				particles[p].dirTime = particles[p].dirChangeRate + 1;
-				particles[p].speed = 2.0 + Math.random();
-				particles[p].dir = dir;
+				emitParticle(x, y, dir);
 			}
 
 			let time = 0;
@@ -298,7 +320,7 @@
 						}
 
 						p.dir = dirIndex;
-						p.dirChangeRate = 20.0 + Math.random() * 20.0;
+						p.dirChangeRate = 5.0 + Math.random() * 20.0;
 						p.dirTime = 0;
 					} else {
 						let dir = Directions[p.dir];
