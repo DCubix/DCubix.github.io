@@ -2,9 +2,13 @@
 @import url('https://fonts.googleapis.com/css?family=Montserrat');
 
 body {
-	/* margin: 3vw; */
+	margin: 0;
 	background: #252120;
 	background-attachment: fixed;
+}
+
+html {
+	margin: 0;
 }
 
 .menu-btn {
