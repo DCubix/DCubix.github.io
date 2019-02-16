@@ -16,7 +16,6 @@
 
 		<link rel="stylesheet" href="./css/main.css" />
 		<link rel="stylesheet" href="./css/layout.css" />
-		<!-- <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/monokai.min.css" /> -->
 
 		<link rel="shortcut icon" href="./favicon.ico" />
 	</head>
@@ -57,74 +56,52 @@
 				</section>
 				<section>
 					<h2 id="projects">Projects</h2>
-					<section class="sub-card">
-						<h3><a class="link" href="https://github.com/DCubix/3D-Software-Renderer">3D Software Rasterizer</a></h3>
-						<div class="hcontainer">
-							<a target="_blank" href="./img/dragon_fallback.jpg">
-								<div class="imgcard">
-									<img src="./img/dragon_fallback.jpg" />
-								</div>
-							</a>
-							<a target="_blank" href="./img/monkey_fallback.jpg">
-								<div class="imgcard">
-									<img src="./img/monkey_fallback.jpg" />
-								</div>
-							</a>
-							<a target="_blank" href="./img/teapot.png">
-								<div class="imgcard">
-									<img src="./img/teapot.png" />
-								</div>
-							</a>
-						</div>
-						<div class="container">
-							<p>Fast 3D multi-threaded CPU rasterizer written in C++. It supports shaders, textures and more.</p>
-						</div>
-					</section>
 
-					<section class="sub-card">
-						<h3><a class="link" href="https://github.com/DCubix/Twist">Twist</a></h3>
-						<div class="hcontainer">
-							<a target="_blank" href="./img/twist.png">
-								<div class="imgcard">
-									<img src="./img/twist.png" />
-								</div>
-							</a>
-						</div>
-						<div class="container">
-							<p>Node-based audio synthesizer. A tool for making sound effects and soundtracks.</p>
-						</div>
-					</section>
+					<div v-if="logged">
+						<ul class="form">
+							<li>
+								<label>Title</label>
+								<input id="tx_title" type="text" />
+							</li>
+							<li>
+								<label>URL</label>
+								<input id="tx_url" type="url" />
+							</li>
+							<li>
+								<label>Description</label>
+								<textarea id="tx_desc"></textarea>
+							</li>
+							<li>
+								<label>Images</label>
+								<button class="fi-plus" onclick="add_img()"></button>
+								<ul>
+									<li v-for="img in imageQueue">
+										<input :id="`fi_${img.id}`" type="file" accept="image/*" />
+										<button :onclick="`delete_img('${img.id}')`" class="fi-x" title="Delete"></button>
+										<p>{{ img.uploading }}</p>
+									</li>
+								</ul>
+							</li>
+							<li>
+								<button class="fi-check" onclick="register_project()">Register</button>
+							</li>
+						</ul>
+					</div>
 
-					<section class="sub-card">
-						<h3><a class="link" href="https://github.com/DCubix/engine-cpp">3D Game Engine</a></h3>
+					<section class="sub-card" v-for="p in projects">
+						<h3><a class="link" :href="`${p.url}`">{{ p.title }}</a></h3>
 						<div class="hcontainer">
-							<a target="_blank" href="./img/editor.jpg">
+							<a target="_blank" v-for="img in p.images" :href="`${img}`">
 								<div class="imgcard">
-									<img src="./img/editor.jpg" />
-								</div>
-							</a>
-							<a target="_blank" href="./img/engine.png">
-								<div class="imgcard">
-									<img src="./img/engine.png" />
+									<img :src="`${img}`" />
 								</div>
 							</a>
 						</div>
 						<div class="container">
-							<p>Advanced 3D game engine focused on graphics and performance.</p>
+							<p>{{ p.desc }}</p>
 						</div>
-					</section>
-
-					<section class="sub-card">
-						<h3><a class="link" href="https://codepen.io/TwisterGE/pen/rdrpzG">Logo-Assembly</a></h3>
-						<div class="hcontainer">
-							<a target="_blank" href="./img/logoasm.gif">
-								<div class="imgcard">
-									<img src="./img/logoasm.gif" />
-								</div>
-							</a>
-						</div>
-						<div class="container">
-							<p>A custom compiled Assembly language for Logo/Turtle Graphics programming. Written in TypeScript and using HTML5 canvas for drawing.</p>
+						<div v-if="logged">
+							<button class="fi-x" title="Delete" :onclick="`delete_project('${p.id}')`"></button>
 						</div>
 					</section>
 				</section>
@@ -133,219 +110,40 @@
 					<h2 id="skills">Skills</h2>
 					<section class="sub-card">
 						<h3>Programming Languages</h3>
-						<p>Java, JavaScript, TypeScript, Python, Lua, C, C++, Rust, SQL, GLSL</p>
+						<p>Java, JavaScript, TypeScript, Python, Lua, C, C++, Rust, SQL, GLSL, Dart</p>
 						<h3>Markup Languages</h3>
 						<p>HTML, CSS, Markdown</p>
 						<h3>Technologies</h3>
-						<p>OpenGL, ReactJS, React-Native, CMake, Git, Firebase, Android, SQLServer</p>
+						<p>OpenGL, ReactJS, React-Native, CMake, Git, Firebase, Android, SQLServer, Flutter</p>
 						<h3>Languages</h3>
 						<p>Portuguese (Brazil), English, Spanish</p>
 					</section>
 				</section>
+
+				<input id="tx_password" type="password" placeholder="Password" hidden />
+				<a id="bt_login" class="fi-alert" title="Admin" onclick="app_login()" ></a>
 			</div>
 		</div>
 
-		<!-- <script src="//unpkg.com/navigo@6"></script> -->
-		<!-- <script src="./js/showdown.js"></script> -->
-		<!-- <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script> -->
+		<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.min.js"></script>
 
+		<script src="https://www.gstatic.com/firebasejs/5.5.2/firebase-app.js"></script>
+		<script src="https://www.gstatic.com/firebasejs/5.5.2/firebase-auth.js"></script>
+		<script src="https://www.gstatic.com/firebasejs/5.5.2/firebase-database.js"></script>
+		<script src="https://www.gstatic.com/firebasejs/5.5.2/firebase-storage.js"></script>
+		
 		<script type="text/javascript">
-			let mainHeader = document.getElementById("mainHeader");
-			let canvas = document.getElementById("disp");
-			let ctx = canvas.getContext("2d");
-
-			window.onresize = function() {
-				canvas.width = document.body.clientWidth;
-				canvas.height = mainHeader.clientHeight;
-
-				ctx.fillStyle = "rgb(37, 33, 32)";
-				ctx.fillRect(0, 0, canvas.width, canvas.height);
+			let config = {
+				apiKey: "AIzaSyBH22gyeS5Li9VuCUJIpuo3w_j1Q7jWH-E",
+				authDomain: "portfolio-90f4d.firebaseapp.com",
+				databaseURL: "https://portfolio-90f4d.firebaseio.com",
+				projectId: "portfolio-90f4d",
+				storageBucket: "portfolio-90f4d.appspot.com",
+				messagingSenderId: "185702939237"
 			};
-			window.onresize();
-
-			let MAX_PARTICLES = 200;
-			let particles = [];
-
-			const Directions = [
-				[1, 0],
-				[1, 1],
-				[0, 1],
-				[-1, 1],
-				[-1, 0],
-				[-1, -1],
-				[0, -1],
-				[1, -1]
-			];
-
-			for (let i = 0; i < MAX_PARTICLES; i++) {
-				particles.push({
-					x: 0,
-					y: 0,
-					px: 0,
-					py: 0,
-					dx: 0,
-					dy: 0,
-					dir: 0,
-					speed: 0,
-					dirTime: 0,
-					dirChangeRate: 0,
-					dead: true
-				});
-			}
-
-			function redraw() {
-				ctx.fillStyle = "rgba(37, 33, 32, 0.1)";
-				ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-				for (let i = 0; i < MAX_PARTICLES; i++) {
-					let p = particles[i];
-					if (p.dead) continue;
-
-					ctx.save();
-					ctx.globalCompositeOperation = "lighter";
-					ctx.strokeStyle = "rgba(229, 223, 197, 0.7)";
-					ctx.lineWidth = 1.5;
-					ctx.lineCap = "round";
-
-					ctx.beginPath();
-					ctx.moveTo(p.px, p.py);
-					ctx.lineTo(p.x, p.y);
-					ctx.stroke();
-					ctx.restore();
-
-					ctx.save();
-					ctx.globalCompositeOperation = "lighter";
-					ctx.lineWidth = 2.0;
-					ctx.lineCap = "round";
-					ctx.shadowColor = "rgba(229, 223, 197, 0.95)";
-					ctx.shadowBlur = 12;
-					ctx.shadowOffsetX = 0;
-					ctx.shadowOffsetY = 0;
-					ctx.beginPath();
-					ctx.moveTo(p.px, p.py);
-					ctx.lineTo(p.x, p.y);
-					ctx.stroke();
-					ctx.restore();
-				}
-			}
-
-			function emitParticle(x, y, dir) {
-				let p = null;
-				for (let i = 0; i < MAX_PARTICLES; i++) {
-					if (particles[i].dead) {
-						p = i;
-						break;
-					}
-				}
-
-				if (p === null) return;
-
-				particles[p].dead = false;
-				particles[p].px = particles[p].x = x;
-				particles[p].py = particles[p].y = y;
-				particles[p].dirChangeRate = ~~(5.0 + Math.random() * 20.0);
-				particles[p].dirTime = particles[p].dirChangeRate + 1;
-				particles[p].speed = 2.0 + Math.random();
-				particles[p].dir = dir;
-			}
-
-			window.onmousedown = function(e) {
-				e = e || window.event;
-				let id = (e.target || e.srcElement).id;
-				if (id !== "avatar") return;
-
-				let avatar = document.getElementById(id);
-				let rect = avatar.getBoundingClientRect();
-				let x = rect.left + avatar.clientWidth / 2;
-				let y = rect.top + avatar.clientHeight / 2;
-
-				//let cr = canvas.getBoundingClientRect();
-				//let x = e.clientX - cr.left;
-				//let y = e.clientY - cr.top;
-				for (let i = 0; i < 50; i++) {
-					emitParticle(x, y, ~~(Math.random() * (Directions.length-1)));
-				}
-			};
-
-			function emit() {
-				let side = ~~Math.floor(Math.random() * 4);
-
-				let x = 0,
-					y = 0,
-					dir = 0;
-				switch (side) {
-					default:
-					case 0: // LEFT
-						dir = 0;
-						y = Math.random() * (canvas.height - 1);
-					break;
-					case 1: // TOP
-						dir = 2;
-						x = Math.random() * (canvas.width - 1);
-					break;
-					case 2: // RIGHT
-						dir = 4;
-						x = canvas.width - 1;
-						y = Math.random() * (canvas.height - 1);
-					break;
-					case 3: // BOTTOM
-						dir = 6;
-						x = Math.random() * (canvas.width - 1);
-						y = canvas.height - 1;
-					break;
-				}
-
-				emitParticle(x, y, dir);
-			}
-
-			let time = 0;
-			function update() {
-				let t = time++ % 5;
-				if (t == 0) {
-					emit();
-				}
-
-				for (let i = 0; i < MAX_PARTICLES; i++) {
-					let p = particles[i];
-					if (p.dead) continue;
-
-					if (p.dirTime++ >= p.dirChangeRate) {
-						const incs = [-1, 0, 1];
-						let dirIndex = p.dir;
-						dirIndex += incs[Math.floor((Math.random() * incs.length))];
-						dirIndex %= Directions.length;
-						if (dirIndex < 0) {
-							dirIndex = Directions.length + dirIndex;
-						}
-
-						p.dir = dirIndex;
-						p.dirChangeRate = 5.0 + Math.random() * 20.0;
-						p.dirTime = 0;
-					} else {
-						let dir = Directions[p.dir];
-						p.dx = dir[0];
-						p.dy = dir[1];
-					}
-
-					p.px = p.x;
-					p.py = p.y;
-					p.x += p.dx * p.speed;
-					p.y += p.dy * p.speed;
-
-					if (p.x < 0 || p.x > canvas.width ||
-						p.y < 0 || p.y > canvas.height)
-						p.dead = true;
-				}
-			}
-
-			function loop() {
-				update();
-				redraw();
-				window.requestAnimationFrame(loop);
-			}
-
-			loop();
+			firebase.initializeApp(config);
 		</script>
-
+		<script type="text/javascript" src="./js/app.js"></script>
+		<script type="text/javascript" src="./js/psys.js"></script>
 	</body>
 </html>
