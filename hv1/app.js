@@ -100,7 +100,7 @@ for (let i = 0; i < SCREEN_HEIGHT; i++) {
 
 function updateScreen() {
 	for (let i = 0; i < SCREEN_HEIGHT; i++) {
-		let txt = SCREEN[i].trim();
+		let txt = SCREEN[i];
 		if (CY === i && BLINK) {
 			txt = [txt.slice(0, CX), "_", txt.slice(CX)].join("");
 		}
@@ -281,6 +281,8 @@ let HV1 = Object.freeze({
 				reset = HV1.prog_step(true);
 			} else if (cmd === "CLEAR") {
 				HV1.clear();
+			} else if (cmd === "DIEGO" || cmd === "TWISTER") {
+				HV1.println("Hello, I'm the creator! ☻");
 			} else {
 				HV1.println("Invalid command \"" + cmd + "\"");
 			}
@@ -476,6 +478,8 @@ window.onkeydown = function(e) {
 				} break;
 				default: {
 					let c = e.key.trim();
+					if (c.length === 0) c = " ";
+
 					if (c.length === 1) {
 						PROMPT_TEXT.splice(CX - PROMPT_X, 0, c);
 						if (PROMPT !== PROMPT_PASSWORD)
