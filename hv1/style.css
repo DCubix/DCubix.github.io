@@ -41,12 +41,8 @@ body, html {
 /* 44x24 */
 #screen {
 	position: fixed;
-	left: 120px;
-	top: 122px;
-	min-height: 340px;
-	max-height: 340px;
-	min-width: 340px;
-	max-width: 340px;
+	left: 95px;
+	top: 99px;
 	color: #87bafd;
 	font: 15px Terminal, monospace;
 	line-height: 14px;
@@ -83,8 +79,8 @@ body, html {
 	outline: none;
 }
 
-.ldt .comment { color: silver; }
-.ldt .string { color: green; }
+.ldt .comment { color: green; }
+.ldt .string { color: darkred; }
 .ldt .number { color: navy; }
 .ldt .keyword { font-weight: bold; display: inline-block; margin-bottom: -1px; }
 .ldt .variable { color: blue; }
@@ -95,11 +91,10 @@ body, html {
 	left: 590px;
 	top: 140px;
 	resize: none;
-	width: 170px;
+	width: 300px;
 	height: 300px;
 	font-family: monospace;
 	border-radius: 8px;
-	font-size: 12px;
 	box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
 	background: rgb(231, 224, 192);
 	z-index: 8;
@@ -133,11 +128,22 @@ body, html {
 
 #floppy {
 	position: fixed;
-	left: 590px;
-	top: 140px;
-	width: 170px;
-	height: 80px;
+	left: 713px;
+	top: 190px;
+	width: 21px;
+	height: 14px;
 	cursor: pointer;
+	background: url('button.png') 0 0;
+	background-position-y: 0;
+	z-index: 7;
+}
+
+#floppy:hover {
+	background-position-y: -14px;
+}
+
+#floppy:active {
+	background-position-y: -28px;
 }
 
 .led {

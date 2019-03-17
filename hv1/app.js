@@ -30,31 +30,100 @@ let parser = new Parser({
 	other: /\S+/,
 });
 let decorator;
-window.onload = function() {
-	DISK.value =
-`  rdi $0
-  rdi $1
-loop:
-  lda $2
-  add $1
-  stm $2
-  lda $0
-  sub 1
-  stm $0
-  jnz $0 loop
-
-  out $2`;
-	decorator = new TextareaDecorator(DISK, parser);
-}
 //
 
 /// Screen
 let SCREEN_WIDTH = 40;
 let SCREEN_HEIGHT = 24;
 
+// Setup rendering
 let SCR = document.getElementById("screen");
+let GL = SCR.getContext("webgl");
+let BUF = document.createElement("canvas");
+BUF.width = 1024;
+BUF.height = 1024;
+let bufCtx = BUF.getContext("2d");
+
+GL.clearColor(0.0, 0.0, 0.0, 1.0);
+GL.clear(GL.COLOR_BUFFER_BIT);
+
+let plane = [
+	0.0, 0.0,
+	1.0, 0.0,
+	1.0, 1.0,
+	1.0, 1.0,
+	0.0, 1.0,
+	0.0, 0.0
+];
+
+let planeBuf = GL.createBuffer();
+GL.bindBuffer(GL.ARRAY_BUFFER, planeBuf);
+GL.bufferData(GL.ARRAY_BUFFER, new Float32Array(plane), GL.STATIC_DRAW);
+GL.bindBuffer(GL.ARRAY_BUFFER, null);
+
+let screenTex = GL.createTexture();
+GL.bindTexture(GL.TEXTURE_2D, screenTex);
+GL.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_MIN_FILTER, GL.LINEAR_MIPMAP_LINEAR);
+GL.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_MAG_FILTER, GL.LINEAR);
+GL.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_S, GL.CLAMP_TO_EDGE);
+GL.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_T, GL.CLAMP_TO_EDGE);
+GL.pixelStorei(GL.UNPACK_FLIP_Y_WEBGL, true);
+GL.texImage2D(GL.TEXTURE_2D, 0, GL.RGBA, BUF.width, BUF.height, 0, GL.RGBA, GL.UNSIGNED_BYTE, null);
+GL.generateMipmap(GL.TEXTURE_2D);
+GL.bindTexture(GL.TEXTURE_2D, null);
+
+let vCode = `precision highp float;
+attribute vec2 vPos;
+varying vec2 texCoord;
+void main() {
+	gl_Position = vec4(vPos * 2.0 - 1.0, 0.0, 1.0);
+	texCoord = vPos;
+}`;
+let fCode = `precision mediump float;
+uniform sampler2D tex;
+varying vec2 texCoord;
+
+void main() {
+		float scale = 0.85;
+		float iscale = 1.0 - scale;
+	vec2 uv = texCoord * scale + (iscale * 0.5);
+	// lens distortion coefficient (between
+		float k = 0.2;
+	// cubic distortion value
+		float kcube = 0.6;
+	float r2 = (uv.x-0.5)*(uv.x-0.5) + (uv.y-0.5)*(uv.y-0.5);
+	float f = 0.0;
+
+	if (kcube == 0.0) {
+		f = 1.0 + r2 * k;
+	} else {
+		f = 1.0 + r2 * (k + kcube * sqrt(r2));
+	}
+	float x = f*(uv.x-0.5)+0.5;
+	float y = f*(uv.y-0.5)+0.5;
+
+	vec4 col = texture2D(tex, vec2(x, y));
+	gl_FragColor = col;
+}`;
+
+let vs = GL.createShader(GL.VERTEX_SHADER);
+GL.shaderSource(vs, vCode);
+GL.compileShader(vs);
+
+let fs = GL.createShader(GL.FRAGMENT_SHADER);
+GL.shaderSource(fs, fCode);
+GL.compileShader(fs);
+
+let prog = GL.createProgram();
+GL.attachShader(prog, vs);
+GL.attachShader(prog, fs);
+GL.linkProgram(prog);
+
+let vPos = GL.getAttribLocation(prog, "vPos");
+let tex = GL.getUniformLocation(prog, "tex");
+//
+
 let SCREEN = new Array(SCREEN_HEIGHT);
-let LINES = [];
 let CX = 0, CY = 0;
 let BLINK = false;
 
@@ -91,21 +160,50 @@ String.prototype.remove = function(index) {
 
 for (let i = 0; i < SCREEN_HEIGHT; i++) {
 	SCREEN[i] = " ".repeat(SCREEN_WIDTH);
-	let line = document.createElement("p");
-	line.onclick = function() { SCR.focus(); };
-	line.innerText = SCREEN[i];
-	SCR.appendChild(line);
-	LINES.push(line);
 }
 
 function updateScreen() {
+	bufCtx.fillStyle = "#000";
+	bufCtx.fillRect(0, 0, BUF.width, BUF.height);
+	bufCtx.font = "40px Terminal, monospace";
+	bufCtx.fillStyle = "#87bafd";
+	bufCtx.imageSmoothingEnabled = false;
+
+	let ox = 64;//27;
+	let oy = 64;//23;
+	let h = 38;
+	let ty = h/2 + oy;
 	for (let i = 0; i < SCREEN_HEIGHT; i++) {
 		let txt = SCREEN[i];
 		if (CY === i && BLINK) {
 			txt = [txt.slice(0, CX), "_", txt.slice(CX)].join("");
 		}
-		LINES[i].innerText = txt;
+		bufCtx.globalCompositeOperation = "source-over";
+		bufCtx.shadowBlur = 0;
+		bufCtx.fillText(txt, ox, ty);
+
+		bufCtx.shadowColor = "#7cb4fc";
+		bufCtx.shadowBlur = 12;
+		bufCtx.fillText(txt, ox, ty);
+		ty += h;
 	}
+
+	GL.viewport(0, 0, SCR.width, SCR.height);
+	GL.clear(GL.COLOR_BUFFER_BIT);
+
+	GL.activeTexture(GL.TEXTURE0);
+	GL.bindTexture(GL.TEXTURE_2D, screenTex);
+	GL.texSubImage2D(GL.TEXTURE_2D, 0, 0, 0, GL.RGBA, GL.UNSIGNED_BYTE, BUF);
+	GL.generateMipmap(GL.TEXTURE_2D);
+
+	GL.useProgram(prog);
+	GL.uniform1i(tex, 0);
+
+	GL.bindBuffer(GL.ARRAY_BUFFER, planeBuf);
+	GL.enableVertexAttribArray(vPos);
+	GL.vertexAttribPointer(vPos, 2, GL.FLOAT, false, 0, 0);
+
+	GL.drawArrays(GL.TRIANGLES, 0, 6);
 }
 
 function blink() {
@@ -113,7 +211,6 @@ function blink() {
 	updateScreen();
 	setTimeout(blink, 500);
 }
-blink();
 
 function ledBlink(id) {
 	let elem = document.getElementById(id);
@@ -121,6 +218,28 @@ function ledBlink(id) {
 	setTimeout(function() {
 		elem.style.backgroundPositionY = "0";
 	}, 40);
+}
+
+function Reader(input) {
+	this.input = input || [];
+
+	this.peek = function() {
+		if (this.input.length <= 0) return "\0";
+		return this.input[0];
+	};
+
+	this.read = function() {
+		if (this.input.length <= 0) return "\0";
+		return this.input.shift();
+	};
+
+	this.read_while = function(cond) {
+		let ret = [];
+		while (this.input.length > 0 && cond(this.peek())) {
+			ret.push(this.read());
+		}
+		return ret.join("");
+	};
 }
 
 let HV1 = Object.freeze({
@@ -132,7 +251,7 @@ let HV1 = Object.freeze({
 		}
 		updateScreen();
 	},
-	put: function(char) {
+	_put: function(char) {
 		if (char === "\n" || char === "\r") {
 			CX = 0;
 			HV1._nextline();
@@ -146,7 +265,6 @@ let HV1 = Object.freeze({
 			CX++;
 			HV1._cur();
 		}
-		updateScreen();
 	},
 	_backspace: function() {
 		CX--;
@@ -157,7 +275,8 @@ let HV1 = Object.freeze({
 		updateScreen();
 	},
 	print: function(msg) {
-		for (let c of msg) HV1.put(c);
+		for (let c of msg) HV1._put(c);
+		updateScreen();
 	},
 	println: function(msg) {
 		HV1.print(msg + "\n");
@@ -194,16 +313,47 @@ let HV1 = Object.freeze({
 	},
 
 	// Builin programs
-	prog_help: function() {
-		HV1.println("╔══════════════════════════════════════╗");
-		HV1.println("║  Commands                            ║");
-		HV1.println("╚══════════════════════════════════════╝");
-		HV1.println(" LOAD:  Loads a program from disk");
-		HV1.println(" LIST:  Lists the program source code");
-		HV1.println(" STEP:  Steps the program");
-		HV1.println(" RUN:   Executes the program");
-		HV1.println(" RESET: Resets the system");
-		HV1.println(" CLEAR: Clears the screen");
+	prog_help: function(args) {
+		let cmd = args !== undefined && args.length > 0 ? args[0].toUpperCase() : "";
+
+		if (cmd.length === 0) {
+			HV1.println("╔══════════════════════════════════════╗");
+			HV1.println("║  Commands                            ║");
+			HV1.println("╚══════════════════════════════════════╝");
+			HV1.println(" HELP:  Shows this message");
+			HV1.println("   HELP HV1: HV1 Usage");
+			HV1.println("   HELP ASM: ASM Cheat-Sheet");
+			HV1.println(" LOAD:  Loads a program from disk");
+			HV1.println(" LIST:  Lists the program source code");
+			HV1.println(" STEP:  Steps the program");
+			HV1.println(" RUN:   Executes the program");
+			HV1.println(" RESET: Resets the system");
+			HV1.println(" CLEAR: Clears the screen");
+		} else {
+			if (cmd === "HV1") {
+				HV1.println("╔══════════════════════════════════════╗");
+				HV1.println("║  HV1 Usage                           ║");
+				HV1.println("╚══════════════════════════════════════╝");
+				HV1.println(" How to:");
+				HV1.println(" 1. Click the Floppy Drive Button");
+				HV1.println(" 2. Type in your program");
+				HV1.println(" 3. In the console, type LOAD");
+				HV1.println(" 4. And then RUN or STEP");
+			} else if (cmd === "ASM") {
+				HV1.println("╔══════════════════════════════════════╗");
+				HV1.println("║  ASM Cheat-Sheet                     ║");
+				HV1.println("╚══════════════════════════════════════╝");
+				HV1.println(" rdi: Reads user input");
+				HV1.println(" out: Outputs a value");
+				HV1.println(" lda: Loads a value into AC");
+				HV1.println(" stm: Stores a value into a memory loc");
+				HV1.println(" jnz: Jumps if not zero");
+				HV1.println(" add: Adds a value into AC");
+				HV1.println(" sub: Subtracts a value from AC");
+			} else {
+				HV1.prog_help();
+			}
+		}
 	},
 
 	prog_load: function() {
@@ -213,34 +363,40 @@ let HV1 = Object.freeze({
 		AC = 0;
 		MEM.fill(0);
 
-		let code = DISK.value.split("\n");
+		let code = DISK.value.split("");
+		let rd = new Reader(code);
+
 		let lnum = 0;
 		let pos = 0;
-		for (let line of code) {
-			let ln = line.trim();
-			PROG_DATA.push(ln);
 
-			if (ln.length === 0) { lnum++; continue; }
-
-			let toks = ln.split(" ");
-			let inst = toks[0];
-
-			if (inst.endsWith(":")) {
-				LABELS[inst.replace(":", "")] = pos;
-			} else {
-				PROG.push({ val: inst, ln: lnum }); pos++;
-			}
-
-			if (toks.length > 1) {
-				for (let i = 1; i < toks.length; i++) {
-					if (isNaN(toks[i])) {
-						PROG.push({ val: toks[i], ln: lnum }); pos++;
-					} else {
-						PROG.push({ val: Number(toks[i]), ln: lnum }); pos++;
-					}
+		while (code.length > 0) {
+			let c = rd.peek();
+			if (/[a-zA-Z_\$:]/.test(c)) {
+				let inst = rd.read_while(function(c) { return /[a-zA-Z_\$:0-9]/.test(c); });
+				if (inst.endsWith(":")) {
+					LABELS[inst.replace(":", "")] = pos;
+				} else {
+					PROG.push({ val: inst, ln: lnum }); pos++;
+				}
+			} else if (/[0-9]/.test(c)) {
+				let num = rd.read_while(function(c) { return /[0-9xXa-fA-F]/.test(c); });
+				PROG.push({ val: parseInt(num), ln: lnum }); pos++;
+			} else if (c === "\n") {
+				lnum++;
+				rd.read();
+			} else if (c === " ") {
+				rd.read();
+			} else if (c === ";") {
+				while (rd.peek() !== "\n") {
+					rd.read();
 				}
 			}
-			lnum++;
+		}
+		console.log(PROG);
+
+		for (let line of DISK.value.split("\n")) {
+			let ln = line.trim();
+			PROG_DATA.push(ln);
 		}
 
 		HV1.println("Ok!");
@@ -262,25 +418,28 @@ let HV1 = Object.freeze({
 	},
 
 	prog_process: function(cmd) {
-		cmd = cmd.toUpperCase();
+		let args = cmd.split(" ").map(function(v) { return v.trim(); });
+		cmd = args[0].toUpperCase();
+		args.shift();
+
 		let reset = false;
 		if (cmd.length > 0) {
 			if (cmd === "HELP" || cmd === "?") {
-				HV1.prog_help();
+				HV1.prog_help(args);
 			} else if (cmd === "LOAD") {
-				HV1.prog_load();
+				HV1.prog_load(args);
 			} else if (cmd === "LIST") {
-				HV1.prog_list();
+				HV1.prog_list(args);
 			} else if (cmd === "RESET") {
-				HV1.prog_reset();
+				HV1.prog_reset(args);
 				reset = true;
 			} else if (cmd === "RUN") {
-				reset = HV1.prog_run();
+				reset = HV1.prog_run(args);
 			} else if (cmd === "STEP") {
 				HV1.println("EXC: " + PROG_DATA[PROG[PC].ln]);
-				reset = HV1.prog_step(true);
+				reset = HV1.prog_step(true, args);
 			} else if (cmd === "CLEAR") {
-				HV1.clear();
+				HV1.clear(args);
 			} else if (cmd === "DIEGO" || cmd === "TWISTER") {
 				HV1.println("Hello, I'm the creator! ☻");
 			} else {
@@ -483,9 +642,10 @@ window.onkeydown = function(e) {
 					if (c.length === 1) {
 						PROMPT_TEXT.splice(CX - PROMPT_X, 0, c);
 						if (PROMPT !== PROMPT_PASSWORD)
-							HV1.put(c);
+							HV1._put(c);
 						else
-							HV1.put("*");
+							HV1._put("*");
+						updateScreen();
 					}
 				} break;
 			}
@@ -497,7 +657,8 @@ window.onkeyup = function(e) {
 	if (document.activeElement !== SCR) return;
 
 	if (PROMPT !== 0 && e.which === 13) {
-		HV1.put("\n");
+		HV1._put("\n");
+		updateScreen();
 		PROMPT = 0;
 		let txt = PROMPT_TEXT.join("");
 		if (PROMPT_CALLBACK !== null) {
@@ -509,5 +670,23 @@ window.onkeyup = function(e) {
 SCR.onclick = function() { SCR.focus(); };
 SCR.focus();
 
-/// Tela de Inicio
-HV1.prog_reset();
+/// Start
+window.onload = function() {
+	DISK.value =
+`  ;; Mult. using ADD and SUB
+  rdi $0
+  rdi $1
+loop:
+  lda $2
+  add $1
+  stm $2
+  lda $0
+  sub 1
+  stm $0
+  jnz $0 loop
+
+  out $2`;
+	decorator = new TextareaDecorator(DISK, parser);
+	HV1.prog_reset();
+	blink();
+};
