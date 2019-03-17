@@ -1,0 +1,181 @@
+@font-face {
+	font-family: Terminal;
+	src: url('font.ttf');
+}
+
+:root {
+	--neon-text-color: #7cb4fc;
+}
+
+body, html {
+	margin: 0;
+	padding: 0;
+	width: 100%;
+	height: 100%;
+	background: linear-gradient(to top, rgb(53, 48, 43), rgb(26, 24, 23));
+}
+
+.content {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	height: 100%;
+}
+
+#leds {
+	position: relative;
+	display: flex;
+	flex-direction: row;
+	left: 600px;
+	top: 223px;
+	min-height: 12px;
+	max-height: 12px;
+	min-width: 140px;
+	max-width: 140px;
+	width: 140px;
+	height: 12px;
+	z-index: 1;
+}
+
+/* 44x24 */
+#screen {
+	position: fixed;
+	left: 120px;
+	top: 122px;
+	min-height: 340px;
+	max-height: 340px;
+	min-width: 340px;
+	max-width: 340px;
+	color: #87bafd;
+	font: 15px Terminal, monospace;
+	line-height: 14px;
+	font-smooth: never;
+	-webkit-font-smooth: none;
+
+	padding: 2px;
+	box-sizing: border-box;
+
+	text-shadow: 0 0 12px var(--neon-text-color);
+
+	mix-blend-mode: screen;
+
+	white-space:pre;
+	-webkit-touch-callout: none; /* iOS Safari */
+	-webkit-user-select: none; /* Safari */
+	-khtml-user-select: none; /* Konqueror HTML */
+	-moz-user-select: none; /* Firefox */
+	-ms-user-select: none; /* Internet Explorer/Edge */
+	user-select: none; /* Non-prefixed version, currently
+							supported by Chrome and Opera */
+	z-index: 5;
+	outline: none;
+}
+
+#screen:focus {
+	outline: none;
+}
+
+#screen p {
+	padding: 0;
+	margin: 0;
+	z-index: 4;
+	outline: none;
+}
+
+.ldt .comment { color: silver; }
+.ldt .string { color: green; }
+.ldt .number { color: navy; }
+.ldt .keyword { font-weight: bold; display: inline-block; margin-bottom: -1px; }
+.ldt .variable { color: blue; }
+.ldt .define { color: blue; }
+
+#codeArea {
+	position: fixed;
+	left: 590px;
+	top: 140px;
+	resize: none;
+	width: 170px;
+	height: 300px;
+	font-family: monospace;
+	border-radius: 8px;
+	font-size: 12px;
+	box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+	background: rgb(231, 224, 192);
+	z-index: 8;
+	transition: all 300ms;
+	overflow: hidden;
+	visibility: visible;
+}
+
+.close {
+	position: absolute;
+	width: 13px;
+	height: 28px;
+	cursor: pointer;
+	right: 10px;
+	z-index: 100;
+	color: #000;
+}
+
+.close:hover {
+	color: #777;
+}
+
+.close:before {
+	content: "\00d7";
+	font-size: 24px;
+}
+
+#code:focus {
+	outline: none;
+}
+
+#floppy {
+	position: fixed;
+	left: 590px;
+	top: 140px;
+	width: 170px;
+	height: 80px;
+	cursor: pointer;
+}
+
+.led {
+	min-width: 18px;
+	max-width: 18px;
+	width: 18px;
+	background: url('led.png') 0 0;
+	background-size: 18px 24px;
+	z-index: 2;
+}
+
+.on {
+	background-position-y: -12px;
+}
+
+.computer {
+	position: relative;
+	min-width: 800px;
+	min-height: 585px;
+	max-width: 800px;
+	max-height: 585px;
+	background: url('computer.png') no-repeat;
+	filter: drop-shadow(0 8px 6px rgba(0, 0, 0, 0.8));
+	z-index: 0;
+}
+
+::-webkit-scrollbar {
+	width: 12px;  /* for vertical scrollbars */
+	height: 12px; /* for horizontal scrollbars */
+	border-radius: 8px;
+	background: rgba(0, 0, 0, 0.1);
+}
+
+::-webkit-scrollbar-track {
+	background: rgba(0, 0, 0, 0.1);
+}
+
+::-webkit-scrollbar-thumb {
+	background: rgba(0, 0, 0, 0.4);
+	border-radius: 8px;
+}
