@@ -124,7 +124,7 @@ let tex = GL.getUniformLocation(prog, "tex");
 //
 
 let SCREEN = new Array(SCREEN_HEIGHT);
-let CX = 0, CY = 0;
+let CX = 0, CY = 0, SX = 0, SY = 0;
 let BLINK = false;
 
 /// Input
@@ -251,7 +251,7 @@ let HV1 = Object.freeze({
 		}
 		updateScreen();
 	},
-	_put: function(char) {
+	_put: function(char, replace) {
 		if (char === "\n" || char === "\r") {
 			CX = 0;
 			HV1._nextline();
@@ -259,9 +259,13 @@ let HV1 = Object.freeze({
 			if (CY > SCREEN_HEIGHT-1) {
 				CY--;
 			}
-			let txt = SCREEN[CY];
-			txt = txt.insert(CX, char);
-			SCREEN[CY] = txt;
+			if (replace) {
+				SCREEN[CY] = SCREEN[CY].setCharAt(CX, char);
+			} else {
+				let txt = SCREEN[CY];
+				txt = txt.insert(CX, char);
+				SCREEN[CY] = txt;
+			}
 			CX++;
 			HV1._cur();
 		}
@@ -274,12 +278,13 @@ let HV1 = Object.freeze({
 		SCREEN[CY] = SCREEN[CY].setCharAt(CX, " ");
 		updateScreen();
 	},
-	print: function(msg) {
-		for (let c of msg) HV1._put(c);
-		updateScreen();
+	print: function(msg, update, replace) {
+		update = update === undefined ? true : update;
+		for (let c of msg) HV1._put(c, replace);
+		if (update) updateScreen();
 	},
-	println: function(msg) {
-		HV1.print(msg + "\n");
+	println: function(msg, update) {
+		HV1.print(msg + "\n", update);
 	},
 	prompt: function(onconfirm, password, tag) {
 		tag = tag || "";
@@ -295,6 +300,11 @@ let HV1 = Object.freeze({
 			SCREEN[y - 1] = SCREEN[y];
 		}
 		SCREEN[(SCREEN_HEIGHT-1)] = " ".repeat(SCREEN_WIDTH);
+		updateScreen();
+	},
+	cursor: function(x, y) {
+		CX = x;
+		CY = y;
 		updateScreen();
 	},
 	_cur: function() {
@@ -317,9 +327,9 @@ let HV1 = Object.freeze({
 		let cmd = args !== undefined && args.length > 0 ? args[0].toUpperCase() : "";
 
 		if (cmd.length === 0) {
-			HV1.println("╔══════════════════════════════════════╗");
-			HV1.println("║  Commands                            ║");
-			HV1.println("╚══════════════════════════════════════╝");
+			HV1.println("┌──────────────────────────────────────┐");
+			HV1.println("│  Commands                            │");
+			HV1.println("└──────────────────────────────────────┘");
 			HV1.println(" HELP:  Shows this message");
 			HV1.println("   HELP HV1: HV1 Usage");
 			HV1.println("   HELP ASM: ASM Cheat-Sheet");
@@ -327,22 +337,23 @@ let HV1 = Object.freeze({
 			HV1.println(" LIST:  Lists the program source code");
 			HV1.println(" STEP:  Steps the program");
 			HV1.println(" RUN:   Executes the program");
+			HV1.println(" MEM:   Shows the memory contents");
 			HV1.println(" RESET: Resets the system");
 			HV1.println(" CLEAR: Clears the screen");
 		} else {
 			if (cmd === "HV1") {
-				HV1.println("╔══════════════════════════════════════╗");
-				HV1.println("║  HV1 Usage                           ║");
-				HV1.println("╚══════════════════════════════════════╝");
+				HV1.println("┌──────────────────────────────────────┐");
+				HV1.println("│  HV1 Usage                           │");
+				HV1.println("└──────────────────────────────────────┘");
 				HV1.println(" How to:");
 				HV1.println(" 1. Click the Floppy Drive Button");
 				HV1.println(" 2. Type in your program");
 				HV1.println(" 3. In the console, type LOAD");
 				HV1.println(" 4. And then RUN or STEP");
 			} else if (cmd === "ASM") {
-				HV1.println("╔══════════════════════════════════════╗");
-				HV1.println("║  ASM Cheat-Sheet                     ║");
-				HV1.println("╚══════════════════════════════════════╝");
+				HV1.println("┌──────────────────────────────────────┐");
+				HV1.println("│  ASM Cheat-Sheet                     │");
+				HV1.println("└──────────────────────────────────────┘");
 				HV1.println(" rdi: Reads user input");
 				HV1.println(" out: Outputs a value");
 				HV1.println(" lda: Loads a value into AC");
@@ -436,12 +447,13 @@ let HV1 = Object.freeze({
 			} else if (cmd === "RUN") {
 				reset = HV1.prog_run(args);
 			} else if (cmd === "STEP") {
-				HV1.println("EXC: " + PROG_DATA[PROG[PC].ln]);
 				reset = HV1.prog_step(true, args);
 			} else if (cmd === "CLEAR") {
 				HV1.clear(args);
 			} else if (cmd === "DIEGO" || cmd === "TWISTER") {
 				HV1.println("Hello, I'm the creator! ☻");
+			} else if (cmd === "MEM") {
+				HV1.prog_mem();
 			} else {
 				HV1.println("Invalid command \"" + cmd + "\"");
 			}
@@ -465,12 +477,12 @@ let HV1 = Object.freeze({
 			PROG_DATA = [];
 			LABELS = {};
 			HV1.clear();
-			HV1.println("╔══════════════════════════════════════╗");
-			HV1.println("║  HV-1 Computer System - v1.0         ║");
-			HV1.println("╠══════════════════════════════════════╣");
-			HV1.println("║  Type HELP or ? for a list           ║");
-			HV1.println("║  of commands.                        ║");
-			HV1.println("╚══════════════════════════════════════╝");
+			HV1.println("┌──────────────────────────────────────┐");
+			HV1.println("│  HV-1 Computer System - v1.0         │");
+			HV1.println("├──────────────────────────────────────┤");
+			HV1.println("│  Type HELP or ? for a list           │");
+			HV1.println("│  of commands.                        │");
+			HV1.println("└──────────────────────────────────────┘");
 		}
 		HV1.prog_process("");
 	},
@@ -480,6 +492,12 @@ let HV1 = Object.freeze({
 			HV1.println("No program loaded.");
 			return false;
 		}
+		if (PC >= PROG.length) {
+			HV1.println("The program ended.");
+			return false;
+		}
+
+		HV1.prog_mem();
 
 		function read(addr) {
 			if (addr[0] !== "$") {
@@ -617,6 +635,67 @@ let HV1 = Object.freeze({
 		}
 		run();
 		return true;
+	},
+
+	prog_mem: function(infunc) {
+		HV1.clear();
+		HV1.cursor(0, 0);
+		HV1.println("┌─────────────────────────┬────────────┐", false);
+		HV1.println("│           PROG          │    MEM     │", false);
+		HV1.println("├─────────────────────────┼────────────┤", false);
+		HV1.println("│                         │            │", false);
+		HV1.println("│                         │            │", false);
+		HV1.println("│                         │            │", false);
+		HV1.println("│                         │            │", false);
+		HV1.println("│                         │            │", false);
+		HV1.println("│                         │            │", false);
+		HV1.println("│                         │            │", false);
+		HV1.println("│                         │            │", false);
+		HV1.println("│                         │            │", false);
+		HV1.println("│                         │            │", false);
+		HV1.println("│                         │            │", false);
+		HV1.println("│                         │            │", false);
+		HV1.println("├─────────────────────────┤            │", false);
+		HV1.println("│            AC           │            │", false);
+		HV1.println("├─────────────────────────┤            │", false);
+		HV1.println("│                         │            │", false);
+		HV1.println("└─────────────────────────┴────────────┘", false);
+
+		// DRAW PROG
+		let y = 3;
+		if (PROG.length > 0) {
+			let ln = PROG[PC].ln;
+			let start = ln >= 11 ? 12 - ln : 0;
+			let len = PROG_DATA.length > 12 ? 12 : PROG_DATA.length;
+			for (let i = start; i < len; i++) {
+				let line = PROG_DATA[i].trim();
+				if (line.startsWith(";")) continue;
+				HV1.cursor(2, y);
+				let lns = line.substring(0, 22);
+				if (!lns.endsWith(":")) lns = "  " + lns;
+				HV1.print(lns, false, true);
+				if (i === ln) {
+					HV1.cursor(2, y);
+					HV1._put(">", true);
+				}
+				y++;
+			}
+		}
+
+		// DRAW MEM
+		y = 3;
+		for (let i = 0; i < MEM.length; i++) {
+			HV1.cursor(28, y);
+			HV1.print(i.toString(16).toUpperCase() + ": " + String("0000000" + MEM[i]).slice(-7), false, true);
+			y++;
+		}
+
+		// DRAW AC
+		HV1.cursor(2, 18);
+		HV1.print("        " + String("0000000" + AC).slice(-7), false, true);
+
+		HV1.cursor(0, 20);
+		updateScreen();
 	}
 });
 
