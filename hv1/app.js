@@ -40,8 +40,8 @@ let SCREEN_HEIGHT = 24;
 let SCR = document.getElementById("screen");
 let GL = SCR.getContext("webgl");
 let BUF = document.createElement("canvas");
-BUF.width = 1024;
-BUF.height = 1024;
+BUF.width = 512;
+BUF.height = 512;
 let bufCtx = BUF.getContext("2d");
 
 GL.clearColor(0.0, 0.0, 0.0, 1.0);
@@ -68,6 +68,7 @@ GL.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_MAG_FILTER, GL.LINEAR);
 GL.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_S, GL.CLAMP_TO_EDGE);
 GL.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_T, GL.CLAMP_TO_EDGE);
 GL.pixelStorei(GL.UNPACK_FLIP_Y_WEBGL, true);
+GL.pixelStorei(GL.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
 GL.texImage2D(GL.TEXTURE_2D, 0, GL.RGBA, BUF.width, BUF.height, 0, GL.RGBA, GL.UNSIGNED_BYTE, null);
 GL.generateMipmap(GL.TEXTURE_2D);
 GL.bindTexture(GL.TEXTURE_2D, null);
@@ -134,6 +135,8 @@ let PROMPT_X = 0;
 let PROMPT = 0;
 let PROMPT_TEXT = [];
 let PROMPT_CALLBACK = null;
+let CMD_HISTORY = [];
+let HPTR = 0;
 
 /// Assembler
 let PROG = [];
@@ -165,13 +168,13 @@ for (let i = 0; i < SCREEN_HEIGHT; i++) {
 function updateScreen() {
 	bufCtx.fillStyle = "#000";
 	bufCtx.fillRect(0, 0, BUF.width, BUF.height);
-	bufCtx.font = "40px Terminal, monospace";
+	bufCtx.font = "20px Terminal, monospace";
 	bufCtx.fillStyle = "#87bafd";
 	bufCtx.imageSmoothingEnabled = false;
 
-	let ox = 64;//27;
-	let oy = 64;//23;
-	let h = 38;
+	let ox = 32;//27;
+	let oy = 32;//23;
+	let h = 18.7;
 	let ty = h/2 + oy;
 	for (let i = 0; i < SCREEN_HEIGHT; i++) {
 		let txt = SCREEN[i];
@@ -276,15 +279,14 @@ let HV1 = Object.freeze({
 			CX = PROMPT_X;
 		}
 		SCREEN[CY] = SCREEN[CY].setCharAt(CX, " ");
+		HPTR = 0;
 		updateScreen();
 	},
-	print: function(msg, update, replace) {
-		update = update === undefined ? true : update;
+	print: function(msg, replace) {
 		for (let c of msg) HV1._put(c, replace);
-		if (update) updateScreen();
 	},
-	println: function(msg, update) {
-		HV1.print(msg + "\n", update);
+	println: function(msg) {
+		HV1.print(msg + "\n");
 	},
 	prompt: function(onconfirm, password, tag) {
 		tag = tag || "";
@@ -305,7 +307,6 @@ let HV1 = Object.freeze({
 	cursor: function(x, y) {
 		CX = x;
 		CY = y;
-		updateScreen();
 	},
 	_cur: function() {
 		if (CX > SCREEN_WIDTH) {
@@ -365,6 +366,7 @@ let HV1 = Object.freeze({
 				HV1.prog_help();
 			}
 		}
+		updateScreen();
 	},
 
 	prog_load: function() {
@@ -403,7 +405,6 @@ let HV1 = Object.freeze({
 				}
 			}
 		}
-		console.log(PROG);
 
 		for (let line of DISK.value.split("\n")) {
 			let ln = line.trim();
@@ -411,6 +412,7 @@ let HV1 = Object.freeze({
 		}
 
 		HV1.println("Ok!");
+		updateScreen();
 	},
 
 	prog_list: function() {
@@ -426,12 +428,20 @@ let HV1 = Object.freeze({
 				lnum++;
 			}
 		}
+		updateScreen();
 	},
 
 	prog_process: function(cmd) {
 		let args = cmd.split(" ").map(function(v) { return v.trim(); });
+		if (CMD_HISTORY.length >= 16) {
+			CMD_HISTORY.shift();
+		}
+		if (cmd.trim().length > 0)
+			CMD_HISTORY.push(cmd.trim());
+
 		cmd = args[0].toUpperCase();
 		args.shift();
+
 
 		let reset = false;
 		if (cmd.length > 0) {
@@ -463,7 +473,6 @@ let HV1 = Object.freeze({
 
 	prog_reset: function(clr) {
 		clr = clr === undefined ? true : clr;
-		console.log(clr);
 
 		PC = 0;
 		AC = 0;
@@ -485,15 +494,12 @@ let HV1 = Object.freeze({
 			HV1.println("└──────────────────────────────────────┘");
 		}
 		HV1.prog_process("");
+		updateScreen();
 	},
 
 	prog_step: function(pmt) {
 		if (PROG.length === 0) {
 			HV1.println("No program loaded.");
-			return false;
-		}
-		if (PC >= PROG.length) {
-			HV1.println("The program ended.");
 			return false;
 		}
 
@@ -527,7 +533,7 @@ let HV1 = Object.freeze({
 				let tgt = next();
 				HV1.prompt(function(val) {
 					if (isNaN(val)) {
-						HV1.println("ERR(ler): Expected a number.");
+						HV1.println("ERR(rdi): Expected a number.");
 						if (pmt) HV1.prog_process("");
 						return;
 					}
@@ -615,6 +621,14 @@ let HV1 = Object.freeze({
 		OPS[op]();
 		ledBlink("cpu");
 
+		updateScreen();
+
+		if (PC >= PROG.length) {
+			PC = 0;
+			AC = 0;
+			MEM.fill(0);
+		}
+
 		return true;
 	},
 
@@ -631,7 +645,7 @@ let HV1 = Object.freeze({
 			if (PROMPT === 0) {
 				HV1.prog_step();
 			}
-			setTimeout(run, 32);
+			window.requestAnimationFrame(run);
 		}
 		run();
 		return true;
@@ -640,26 +654,26 @@ let HV1 = Object.freeze({
 	prog_mem: function(infunc) {
 		HV1.clear();
 		HV1.cursor(0, 0);
-		HV1.println("┌─────────────────────────┬────────────┐", false);
-		HV1.println("│           PROG          │    MEM     │", false);
-		HV1.println("├─────────────────────────┼────────────┤", false);
-		HV1.println("│                         │            │", false);
-		HV1.println("│                         │            │", false);
-		HV1.println("│                         │            │", false);
-		HV1.println("│                         │            │", false);
-		HV1.println("│                         │            │", false);
-		HV1.println("│                         │            │", false);
-		HV1.println("│                         │            │", false);
-		HV1.println("│                         │            │", false);
-		HV1.println("│                         │            │", false);
-		HV1.println("│                         │            │", false);
-		HV1.println("│                         │            │", false);
-		HV1.println("│                         │            │", false);
-		HV1.println("├─────────────────────────┤            │", false);
-		HV1.println("│            AC           │            │", false);
-		HV1.println("├─────────────────────────┤            │", false);
-		HV1.println("│                         │            │", false);
-		HV1.println("└─────────────────────────┴────────────┘", false);
+		HV1.println("┌─────────────────────────┬────────────┐");
+		HV1.println("│           PROG          │    MEM     │");
+		HV1.println("├─────────────────────────┼────────────┤");
+		HV1.println("│                         │            │");
+		HV1.println("│                         │            │");
+		HV1.println("│                         │            │");
+		HV1.println("│                         │            │");
+		HV1.println("│                         │            │");
+		HV1.println("│                         │            │");
+		HV1.println("│                         │            │");
+		HV1.println("│                         │            │");
+		HV1.println("│                         │            │");
+		HV1.println("│                         │            │");
+		HV1.println("│                         │            │");
+		HV1.println("│                         │            │");
+		HV1.println("├─────────────────────────┤            │");
+		HV1.println("│            AC           │            │");
+		HV1.println("├─────────────────────────┤            │");
+		HV1.println("│                         │            │");
+		HV1.println("└─────────────────────────┴────────────┘");
 
 		// DRAW PROG
 		let y = 3;
@@ -673,7 +687,7 @@ let HV1 = Object.freeze({
 				HV1.cursor(2, y);
 				let lns = line.substring(0, 22);
 				if (!lns.endsWith(":")) lns = "  " + lns;
-				HV1.print(lns, false, true);
+				HV1.print(lns, true);
 				if (i === ln) {
 					HV1.cursor(2, y);
 					HV1._put(">", true);
@@ -686,13 +700,13 @@ let HV1 = Object.freeze({
 		y = 3;
 		for (let i = 0; i < MEM.length; i++) {
 			HV1.cursor(28, y);
-			HV1.print(i.toString(16).toUpperCase() + ": " + String("0000000" + MEM[i]).slice(-7), false, true);
+			HV1.print(i.toString(16).toUpperCase() + ": " + String("0000000" + MEM[i]).slice(-7), true);
 			y++;
 		}
 
 		// DRAW AC
 		HV1.cursor(2, 18);
-		HV1.print("        " + String("0000000" + AC).slice(-7), false, true);
+		HV1.print("        " + String("0000000" + AC).slice(-7), true);
 
 		HV1.cursor(0, 20);
 		updateScreen();
@@ -703,9 +717,23 @@ window.onkeydown = function(e) {
 	if (document.activeElement !== SCR) return;
 
 	if (e.key === "ArrowLeft" || e.which === "ArrowRight" ||
-		e.key === "ArrowUp" || e.key === "ArrowDown" ||
+		e.key === "ArrowDown" ||
 		e.key === "Tab" || e.key === "ContextMenu") {
-		e.preventDefault()
+		e.preventDefault();
+	} else if (e.key === "ArrowUp") {
+		e.preventDefault();
+		if (CMD_HISTORY.length === 0) return;
+		if (HPTR >= CMD_HISTORY.length) HPTR = 0;
+		CX = 2;
+		HV1.cursor(CX, CY);
+		HV1.print("                                      ", true);
+		CX = 2;
+		HV1.cursor(CX, CY);
+		let cmd = CMD_HISTORY[CMD_HISTORY.length - 1 - HPTR];
+		PROMPT_TEXT = cmd.split("");
+		HV1.print(cmd, true);
+		HPTR++;
+		updateScreen();
 	} else {
 		if (PROMPT !== 0 && e.which !== 13) {
 			BLINK = true;
@@ -724,6 +752,7 @@ window.onkeydown = function(e) {
 							HV1._put(c);
 						else
 							HV1._put("*");
+						HPTR = 0;
 						updateScreen();
 					}
 				} break;
@@ -740,6 +769,10 @@ window.onkeyup = function(e) {
 		updateScreen();
 		PROMPT = 0;
 		let txt = PROMPT_TEXT.join("");
+		if (CMD_HISTORY.indexOf(txt) !== -1) {
+			CMD_HISTORY.pop();
+		}
+		HPTR = 0;
 		if (PROMPT_CALLBACK !== null) {
 			PROMPT_CALLBACK(txt);
 		}
