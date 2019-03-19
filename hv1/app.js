@@ -458,6 +458,11 @@ let HV1 = Object.freeze({
 				reset = HV1.prog_run(args);
 			} else if (cmd === "STEP") {
 				reset = HV1.prog_step(true, args);
+				if (PC >= PROG.length) {
+					PC = 0;
+					AC = 0;
+					MEM.fill(0);
+				}
 			} else if (cmd === "CLEAR") {
 				HV1.clear(args);
 			} else if (cmd === "DIEGO" || cmd === "TWISTER") {
@@ -623,12 +628,6 @@ let HV1 = Object.freeze({
 
 		updateScreen();
 
-		if (PC >= PROG.length) {
-			PC = 0;
-			AC = 0;
-			MEM.fill(0);
-		}
-
 		return true;
 	},
 
@@ -645,7 +644,7 @@ let HV1 = Object.freeze({
 			if (PROMPT === 0) {
 				HV1.prog_step();
 			}
-			window.requestAnimationFrame(run);
+			setTimeout(run, 30);
 		}
 		run();
 		return true;
