@@ -24,9 +24,10 @@ let parser = new Parser({
 	comment: /;.*/,
 	string: /"(\\.|[^"\r\n])*"?|'(\\.|[^'\r\n])*'?/,
 	number: /0x[\dA-Fa-f]+|-?(\d+\.?\d*|\.\d+)/,
-	keyword: /(rdi|lda|add|stm|sub|jnz|out)/,
-	variable: /[\$\%\@](\->|\w)+(?!\w)|\${\w*}?/,
+	keyword: /(rdi|lda|add|stm|sub|jnz|out|mod)/,
+	variable: /AC|[\$\%\@](\->|\w)+(?!\w)|\${\w*}?/,
 	op: /[\+\-\*\/=<>!]=?|[\(\)\{\}\[\]\.\|]/,
+	label: /.*:/,
 	other: /\S+/,
 });
 let decorator;
@@ -35,6 +36,7 @@ let decorator;
 /// Screen
 let SCREEN_WIDTH = 40;
 let SCREEN_HEIGHT = 24;
+let crtEffect = true;
 
 // Setup rendering
 let SCR = document.getElementById("screen");
@@ -82,6 +84,7 @@ void main() {
 }`;
 let fCode = `precision mediump float;
 uniform sampler2D tex;
+uniform float crt;
 varying vec2 texCoord;
 
 void main() {
@@ -103,7 +106,12 @@ void main() {
 	float x = f*(uv.x-0.5)+0.5;
 	float y = f*(uv.y-0.5)+0.5;
 
-	vec4 col = texture2D(tex, vec2(x, y));
+	vec2 tuv = texCoord;
+	if (crt >= 0.5) {
+		tuv = vec2(x, y);
+	}
+
+	vec4 col = texture2D(tex, tuv);
 	gl_FragColor = col;
 }`;
 
@@ -122,6 +130,7 @@ GL.linkProgram(prog);
 
 let vPos = GL.getAttribLocation(prog, "vPos");
 let tex = GL.getUniformLocation(prog, "tex");
+let crt = GL.getUniformLocation(prog, "crt");
 //
 
 let SCREEN = new Array(SCREEN_HEIGHT);
@@ -141,6 +150,7 @@ let HPTR = 0;
 /// Assembler
 let PROG = [];
 let PROG_DATA = [];
+let PROG_OUT = [];
 let LABELS = {};
 let PC = 0;
 let AC = 0;
@@ -201,6 +211,7 @@ function updateScreen() {
 
 	GL.useProgram(prog);
 	GL.uniform1i(tex, 0);
+	GL.uniform1f(crt, crtEffect ? 1.0 : 0.0);
 
 	GL.bindBuffer(GL.ARRAY_BUFFER, planeBuf);
 	GL.enableVertexAttribArray(vPos);
@@ -341,6 +352,7 @@ let HV1 = Object.freeze({
 			HV1.println(" MEM:   Shows the memory contents");
 			HV1.println(" RESET: Resets the system");
 			HV1.println(" CLEAR: Clears the screen");
+			HV1.println(" CRT: Toggle CRT Effect");
 		} else {
 			if (cmd === "HV1") {
 				HV1.println("┌──────────────────────────────────────┐");
@@ -362,6 +374,7 @@ let HV1 = Object.freeze({
 				HV1.println(" jnz: Jumps if not zero");
 				HV1.println(" add: Adds a value into AC");
 				HV1.println(" sub: Subtracts a value from AC");
+				HV1.println(" mod: Modulo of a value with AC");
 			} else {
 				HV1.prog_help();
 			}
@@ -370,6 +383,7 @@ let HV1 = Object.freeze({
 	},
 
 	prog_load: function() {
+		PROG_OUT = [];
 		PROG = [];
 		LABELS = {};
 		PC = 0;
@@ -410,6 +424,7 @@ let HV1 = Object.freeze({
 			let ln = line.trim();
 			PROG_DATA.push(ln);
 		}
+		console.log(PROG_DATA);
 
 		HV1.println("Ok!");
 		updateScreen();
@@ -442,7 +457,6 @@ let HV1 = Object.freeze({
 		cmd = args[0].toUpperCase();
 		args.shift();
 
-
 		let reset = false;
 		if (cmd.length > 0) {
 			if (cmd === "HELP" || cmd === "?") {
@@ -457,7 +471,7 @@ let HV1 = Object.freeze({
 			} else if (cmd === "RUN") {
 				reset = HV1.prog_run(args);
 			} else if (cmd === "STEP") {
-				reset = HV1.prog_step(true, args);
+				reset = HV1.prog_step(true, false, args);
 				if (PC >= PROG.length) {
 					PC = 0;
 					AC = 0;
@@ -467,6 +481,9 @@ let HV1 = Object.freeze({
 				HV1.clear(args);
 			} else if (cmd === "DIEGO" || cmd === "TWISTER") {
 				HV1.println("Hello, I'm the creator! ☻");
+			} else if (cmd === "CRT") {
+				crtEffect = !crtEffect;
+				updateScreen();
 			} else if (cmd === "MEM") {
 				HV1.prog_mem();
 			} else {
@@ -487,6 +504,7 @@ let HV1 = Object.freeze({
 		PROMPT_X = 0;
 
 		if (clr) {
+			PROG_OUT = [];
 			PROG = [];
 			PROG_DATA = [];
 			LABELS = {};
@@ -502,29 +520,44 @@ let HV1 = Object.freeze({
 		updateScreen();
 	},
 
-	prog_step: function(pmt) {
+	prog_step: function(pmt, hidemem) {
 		if (PROG.length === 0) {
 			HV1.println("No program loaded.");
 			return false;
 		}
 
-		HV1.prog_mem();
+		if (!hidemem) HV1.prog_mem();
 
 		function read(addr) {
 			if (addr[0] !== "$") {
 				HV1.println("ERR(" + line() + "): Invalid address.");
 				return 0xF;
 			}
+			addr = parseInt(addr.substring(1));
+			if (addr > 0xF) {
+				HV1.println("ERR(" + line() + "): Invalid address.");
+				return 0xF;
+			}
 			ledBlink("mem");
-			return Number(MEM[addr.substring(1)]);
+			return parseInt(MEM[addr]);
 		}
 		function write(addr, v) {
 			if (addr[0] !== "$") {
 				HV1.println("ERR(" + line() + "): Invalid address.");
 				return;
 			}
+			addr = parseInt(addr.substring(1));
+			if (addr > 0xF) {
+				HV1.println("ERR(" + line() + "): Invalid address.");
+				return 0xF;
+			}
 			ledBlink("mem");
-			MEM[addr.substring(1)] = v;
+			MEM[addr] = v;
+			if (MEM[addr] > 0xFFFF) {
+				MEM[addr] = 0;
+			} else if (MEM[addr] < 0) {
+				MEM[addr] = 0xFFFF;
+			}
 		}
 		function next() {
 			return PROG[PC++].val;
@@ -543,7 +576,7 @@ let HV1 = Object.freeze({
 						return;
 					}
 					if (isNaN(tgt) && tgt[0] === "$") {
-						write(tgt, Number(val));
+						write(tgt, parseInt(val));
 					} else {
 						HV1.println("ERR(" + line() + "): Expected a mem address.");
 					}
@@ -552,9 +585,10 @@ let HV1 = Object.freeze({
 			},
 			"out": function() { // Print
 				let src = next();
-				if (!isNaN(src)) src = Number(src);
+				if (!isNaN(src)) src = parseInt(src);
 				else if (src[0] === "$") src = read(src);
 				else src = AC;
+				PROG_OUT.push(src);
 				HV1.println(src);
 				if (pmt) HV1.prog_process("");
 			},
@@ -578,7 +612,7 @@ let HV1 = Object.freeze({
 						AC += read(from);
 					}
 				} else {
-					AC += Number(from);
+					AC += parseInt(from);
 				}
 				if (pmt) HV1.prog_process("");
 			},
@@ -590,7 +624,7 @@ let HV1 = Object.freeze({
 						AC -= read(from);
 					}
 				} else {
-					AC -= Number(from);
+					AC -= parseInt(from);
 				}
 				if (pmt) HV1.prog_process("");
 			},
@@ -611,13 +645,24 @@ let HV1 = Object.freeze({
 					if (val === "AC") val = AC;
 					else val = read(val);
 				} else {
-					val = Number(val);
+					val = parseInt(val);
 				}
 
 				if (isNaN(to)) to = LABELS[to];
-				else to = Number(to);
+				else to = parseInt(to);
 
 				if (val !== 0) PC = to;
+				if (pmt) HV1.prog_process("");
+			},
+			"mod": function() { // Calculates the modulo (rest of division) of a value between AC and X
+				let x = next(); // And stores it in AC
+				if (isNaN(x)) {
+					if (x === "AC") x = AC;
+					else x = read(x);
+				} else {
+					x = parseInt(x);
+				}
+				AC %= ~~x;
 				if (pmt) HV1.prog_process("");
 			}
 		};
@@ -636,15 +681,16 @@ let HV1 = Object.freeze({
 			HV1.println("No program loaded.");
 			return false;
 		}
+		PROG_OUT = [];
 		function run() {
 			if (PC >= PROG.length && PROMPT === 0) {
 				HV1.prog_reset(false);
 				return;
 			}
 			if (PROMPT === 0) {
-				HV1.prog_step();
+				HV1.prog_step(false, true);
 			}
-			setTimeout(run, 30);
+			setTimeout(run, 15);
 		}
 		run();
 		return true;
@@ -674,14 +720,19 @@ let HV1 = Object.freeze({
 		HV1.println("│                         │            │");
 		HV1.println("└─────────────────────────┴────────────┘");
 
+		HV1.println("OUT> " + PROG_OUT.join(",").trim());
+
 		// DRAW PROG
 		let y = 3;
 		if (PROG.length > 0) {
 			let ln = PROG[PC].ln;
-			let start = ln >= 11 ? 12 - ln : 0;
+			let lni = (~~(ln / 12)) * 12;
 			let len = PROG_DATA.length > 12 ? 12 : PROG_DATA.length;
-			for (let i = start; i < len; i++) {
-				let line = PROG_DATA[i].trim();
+			for (let i = lni; i < lni + len; i++) {
+				let line;
+				if (i >= PROG_DATA.length) line = "                     ";
+				else line = PROG_DATA[i].trim();
+
 				if (line.startsWith(";")) continue;
 				HV1.cursor(2, y);
 				let lns = line.substring(0, 22);
@@ -707,7 +758,7 @@ let HV1 = Object.freeze({
 		HV1.cursor(2, 18);
 		HV1.print("        " + String("0000000" + AC).slice(-7), true);
 
-		HV1.cursor(0, 20);
+		HV1.cursor(0, 22);
 		updateScreen();
 	}
 });
@@ -784,19 +835,19 @@ SCR.focus();
 /// Start
 window.onload = function() {
 	DISK.value =
-`  ;; Mult. using ADD and SUB
+`  ;; Print even values
   rdi $0
-  rdi $1
-loop:
-  lda $2
-  add $1
-  stm $2
+_check:
+  lda $0
+  mod 2
+  jnz AC _sub
+  out $0
+_sub:
   lda $0
   sub 1
   stm $0
-  jnz $0 loop
-
-  out $2`;
+  jnz AC _check
+  out $0`;
 	decorator = new TextareaDecorator(DISK, parser);
 	HV1.prog_reset();
 	blink();
