@@ -367,14 +367,14 @@ let HV1 = Object.freeze({
 				HV1.println("┌──────────────────────────────────────┐");
 				HV1.println("│  ASM Cheat-Sheet                     │");
 				HV1.println("└──────────────────────────────────────┘");
-				HV1.println(" rdi: Reads user input");
-				HV1.println(" out: Outputs a value");
-				HV1.println(" lda: Loads a value into AC");
-				HV1.println(" stm: Stores a value into a memory loc");
-				HV1.println(" jnz: Jumps if not zero");
-				HV1.println(" add: Adds a value into AC");
-				HV1.println(" sub: Subtracts a value from AC");
-				HV1.println(" mod: Modulo of a value with AC");
+				HV1.println(" rdi M: Reads user input into M");
+				HV1.println(" out V: Outputs a value V");
+				HV1.println(" lda V: Loads a value V into AC");
+				HV1.println(" stm V: Stores a V into a memory. loc");
+				HV1.println(" jnz V T: Jumps to T if V is not zero");
+				HV1.println(" add V: Adds a value V into AC");
+				HV1.println(" sub V: Subtracts a value V from AC");
+				HV1.println(" mod V: Modulo of AC with a value V");
 			} else {
 				HV1.prog_help();
 			}
