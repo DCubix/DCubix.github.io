@@ -24,7 +24,7 @@ let parser = new Parser({
 	comment: /;.*/,
 	string: /"(\\.|[^"\r\n])*"?|'(\\.|[^'\r\n])*'?/,
 	number: /0x[\dA-Fa-f]+|-?(\d+\.?\d*|\.\d+)/,
-	keyword: /(rdi|lda|add|stm|sub|jnz|out|mod)/,
+	keyword: /(rdi|lda|add|stm|sub|jnz|jmp|out|mod|sys)/,
 	variable: /AC|[\$\%\@](\->|\w)+(?!\w)|\${\w*}?/,
 	op: /[\+\-\*\/=<>!]=?|[\(\)\{\}\[\]\.\|]/,
 	label: /.*:/,
@@ -42,8 +42,8 @@ let crtEffect = true;
 let SCR = document.getElementById("screen");
 let GL = SCR.getContext("webgl");
 let BUF = document.createElement("canvas");
-BUF.width = 512;
-BUF.height = 512;
+BUF.width = 256;
+BUF.height = 256;
 let bufCtx = BUF.getContext("2d");
 
 GL.clearColor(0.0, 0.0, 0.0, 1.0);
@@ -175,55 +175,77 @@ for (let i = 0; i < SCREEN_HEIGHT; i++) {
 	SCREEN[i] = " ".repeat(SCREEN_WIDTH);
 }
 
-function updateScreen() {
-	bufCtx.fillStyle = "#000";
-	bufCtx.fillRect(0, 0, BUF.width, BUF.height);
-	bufCtx.font = "20px Terminal, monospace";
-	bufCtx.fillStyle = "#87bafd";
-	bufCtx.imageSmoothingEnabled = false;
+let blinkTime = 0.0;
+let lastTime = Date.now() / 1000.0;
+let timeStep = 1.0 / 120;
+function main() {
+	let canRender = false;
+	let current = Date.now() / 1000.0;
+	let delta = current - lastTime;
+	lastTime = current;
 
-	let ox = 32;//27;
-	let oy = 32;//23;
-	let h = 18.7;
-	let ty = h/2 + oy;
-	for (let i = 0; i < SCREEN_HEIGHT; i++) {
-		let txt = SCREEN[i];
-		if (CY === i && BLINK) {
-			txt = [txt.slice(0, CX), "_", txt.slice(CX)].join("");
+	while (delta >= 0) {
+		let dt = Math.min(delta, timeStep);
+
+		blinkTime += dt;
+		if (blinkTime >= 0.5) {
+			BLINK = !BLINK;
+			blinkTime = 0.0;
 		}
-		bufCtx.globalCompositeOperation = "source-over";
-		bufCtx.shadowBlur = 0;
-		bufCtx.fillText(txt, ox, ty);
 
-		bufCtx.shadowColor = "#7cb4fc";
-		bufCtx.shadowBlur = 12;
-		bufCtx.fillText(txt, ox, ty);
-		ty += h;
+		canRender = true;
+		delta -= timeStep;
 	}
 
-	GL.viewport(0, 0, SCR.width, SCR.height);
-	GL.clear(GL.COLOR_BUFFER_BIT);
+	if (canRender) {
+		updateScreen();
 
-	GL.activeTexture(GL.TEXTURE0);
+		bufCtx.fillStyle = "#000";
+		bufCtx.fillRect(0, 0, BUF.width, BUF.height);
+		bufCtx.font = "10px Terminal, monospace";
+		bufCtx.fillStyle = "#87bafd";
+		bufCtx.imageSmoothingEnabled = false;
+
+		let ox = 16;//27;
+		let oy = 16;//23;
+		let h = 9.45;
+		let ty = h/2 + oy;
+		for (let i = 0; i < SCREEN_HEIGHT; i++) {
+			let txt = SCREEN[i];
+			if (CY === i && BLINK) {
+				txt = [txt.slice(0, CX), "_", txt.slice(CX)].join("");
+			}
+			bufCtx.fillText(txt, ox, ty);
+			ty += h;
+		}
+
+		GL.viewport(0, 0, SCR.width, SCR.height);
+		GL.clear(GL.COLOR_BUFFER_BIT);
+
+		GL.activeTexture(GL.TEXTURE0);
+		GL.bindTexture(GL.TEXTURE_2D, screenTex);
+
+		GL.useProgram(prog);
+		GL.uniform1i(tex, 0);
+		GL.uniform1f(crt, crtEffect ? 1.0 : 0.0);
+
+		GL.bindBuffer(GL.ARRAY_BUFFER, planeBuf);
+		GL.enableVertexAttribArray(vPos);
+		GL.vertexAttribPointer(vPos, 2, GL.FLOAT, false, 0, 0);
+
+		GL.drawArrays(GL.TRIANGLES, 0, 6);
+
+		GL.bindTexture(GL.TEXTURE_2D, null);
+	}
+
+	window.requestAnimationFrame(main);
+}
+
+function updateScreen() {
 	GL.bindTexture(GL.TEXTURE_2D, screenTex);
 	GL.texSubImage2D(GL.TEXTURE_2D, 0, 0, 0, GL.RGBA, GL.UNSIGNED_BYTE, BUF);
 	GL.generateMipmap(GL.TEXTURE_2D);
-
-	GL.useProgram(prog);
-	GL.uniform1i(tex, 0);
-	GL.uniform1f(crt, crtEffect ? 1.0 : 0.0);
-
-	GL.bindBuffer(GL.ARRAY_BUFFER, planeBuf);
-	GL.enableVertexAttribArray(vPos);
-	GL.vertexAttribPointer(vPos, 2, GL.FLOAT, false, 0, 0);
-
-	GL.drawArrays(GL.TRIANGLES, 0, 6);
-}
-
-function blink() {
-	BLINK = !BLINK;
-	updateScreen();
-	setTimeout(blink, 500);
+	GL.bindTexture(GL.TEXTURE_2D, null);
 }
 
 function ledBlink(id) {
@@ -231,7 +253,7 @@ function ledBlink(id) {
 	elem.style.backgroundPositionY = "-12px";
 	setTimeout(function() {
 		elem.style.backgroundPositionY = "0";
-	}, 40);
+	}, 30);
 }
 
 function Reader(input) {
@@ -371,10 +393,12 @@ let HV1 = Object.freeze({
 				HV1.println(" out V: Outputs a value V");
 				HV1.println(" lda V: Loads a value V into AC");
 				HV1.println(" stm V: Stores a V into a memory. loc");
+				HV1.println(" jmp T: Jumps to T");
 				HV1.println(" jnz V T: Jumps to T if V is not zero");
 				HV1.println(" add V: Adds a value V into AC");
 				HV1.println(" sub V: Subtracts a value V from AC");
 				HV1.println(" mod V: Modulo of AC with a value V");
+				HV1.println(" sys SSPP: Exec. sys call S with arg P");
 			} else {
 				HV1.prog_help();
 			}
@@ -517,7 +541,6 @@ let HV1 = Object.freeze({
 			HV1.println("└──────────────────────────────────────┘");
 		}
 		HV1.prog_process("");
-		updateScreen();
 	},
 
 	prog_step: function(pmt, hidemem) {
@@ -600,7 +623,7 @@ let HV1 = Object.freeze({
 						AC = read(from);
 					}
 				} else {
-					HV1.println("ERR(" + line() + "): Expected memory addr.");
+					AC = parseInt(from);
 				}
 				if (pmt) HV1.prog_process("");
 			},
@@ -638,6 +661,13 @@ let HV1 = Object.freeze({
 				}
 				if (pmt) HV1.prog_process("");
 			},
+			"jmp": function() { // Jumps
+				let to = next();
+				if (isNaN(to)) to = LABELS[to];
+				else to = parseInt(to);
+				PC = to;
+				if (pmt) HV1.prog_process("");
+			},
 			"jnz": function() { // Jumps if value is not zero (jnz 0 loop, jnz AC lbl, jnz $2 lbl)
 				let val = next();
 				let to = next();
@@ -664,14 +694,47 @@ let HV1 = Object.freeze({
 				}
 				AC %= ~~x;
 				if (pmt) HV1.prog_process("");
+			},
+			"sys": function() { // Perform a system call
+				let call = next();
+				if (isNaN(call)) {
+					if (call == "AC") call = AC;
+					else call = read(call);
+				} else {
+					call = parseInt(call);
+				}
+
+				// Command layout
+				// 0xAABB
+				// A = command
+				// B = argument
+				let cmd = (call & 0xFF00) >> 8;
+				let arg = (call & 0x00FF);
+				switch (cmd) {
+					case 0x0: { // Clears the screen
+						HV1.clear();
+					} break;
+					case 0x1: { // Put char
+						HV1._put(String.fromCharCode(arg));
+					} break;
+					case 0x2: { // Set cursor X
+						CX = arg;
+					} break;
+					case 0x3: { // Set cursor Y
+						CY = arg;
+					} break;
+					case 0x4: { // Put char replace
+						HV1._put(String.fromCharCode(arg), true);
+					} break;
+					default: HV1.println("ERR(" + line() + "): Unknown sys call."); break;
+				}
+				if (pmt) HV1.prog_process("");
 			}
 		};
 
 		let op = next();
 		OPS[op]();
 		ledBlink("cpu");
-
-		updateScreen();
 
 		return true;
 	},
@@ -690,8 +753,9 @@ let HV1 = Object.freeze({
 			if (PROMPT === 0) {
 				HV1.prog_step(false, true);
 			}
-			setTimeout(run, 15);
+			setTimeout(run, 1);
 		}
+
 		run();
 		return true;
 	},
@@ -795,7 +859,6 @@ window.onkeydown = function(e) {
 				default: {
 					let c = e.key.trim();
 					if (c.length === 0) c = " ";
-
 					if (c.length === 1) {
 						PROMPT_TEXT.splice(CX - PROMPT_X, 0, c);
 						if (PROMPT !== PROMPT_PASSWORD)
@@ -803,10 +866,10 @@ window.onkeydown = function(e) {
 						else
 							HV1._put("*");
 						HPTR = 0;
-						updateScreen();
 					}
 				} break;
 			}
+			updateScreen();
 		}
 	}
 };
@@ -850,5 +913,5 @@ _sub:
   out $0`;
 	decorator = new TextareaDecorator(DISK, parser);
 	HV1.prog_reset();
-	blink();
+	main();
 };
