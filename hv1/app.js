@@ -285,7 +285,6 @@ let HV1 = Object.freeze({
 		for (let i = 0; i < SCREEN_HEIGHT; i++) {
 			SCREEN[i] = " ".repeat(SCREEN_WIDTH);
 		}
-		updateScreen();
 	},
 	_put: function(char, replace) {
 		if (char === "\n" || char === "\r") {
@@ -313,7 +312,6 @@ let HV1 = Object.freeze({
 		}
 		SCREEN[CY] = SCREEN[CY].setCharAt(CX, " ");
 		HPTR = 0;
-		updateScreen();
 	},
 	print: function(msg, replace) {
 		for (let c of msg) HV1._put(c, replace);
@@ -335,7 +333,6 @@ let HV1 = Object.freeze({
 			SCREEN[y - 1] = SCREEN[y];
 		}
 		SCREEN[(SCREEN_HEIGHT-1)] = " ".repeat(SCREEN_WIDTH);
-		updateScreen();
 	},
 	cursor: function(x, y) {
 		CX = x;
@@ -403,7 +400,6 @@ let HV1 = Object.freeze({
 				HV1.prog_help();
 			}
 		}
-		updateScreen();
 	},
 
 	prog_load: function() {
@@ -451,7 +447,6 @@ let HV1 = Object.freeze({
 		console.log(PROG_DATA);
 
 		HV1.println("Ok!");
-		updateScreen();
 	},
 
 	prog_list: function() {
@@ -467,7 +462,6 @@ let HV1 = Object.freeze({
 				lnum++;
 			}
 		}
-		updateScreen();
 	},
 
 	prog_process: function(cmd) {
@@ -507,7 +501,6 @@ let HV1 = Object.freeze({
 				HV1.println("Hello, I'm the creator! ☻");
 			} else if (cmd === "CRT") {
 				crtEffect = !crtEffect;
-				updateScreen();
 			} else if (cmd === "MEM") {
 				HV1.prog_mem();
 			} else {
@@ -823,7 +816,6 @@ let HV1 = Object.freeze({
 		HV1.print("        " + String("0000000" + AC).slice(-7), true);
 
 		HV1.cursor(0, 22);
-		updateScreen();
 	}
 });
 
@@ -847,7 +839,6 @@ window.onkeydown = function(e) {
 		PROMPT_TEXT = cmd.split("");
 		HV1.print(cmd, true);
 		HPTR++;
-		updateScreen();
 	} else {
 		if (PROMPT !== 0 && e.which !== 13) {
 			BLINK = true;
@@ -869,7 +860,6 @@ window.onkeydown = function(e) {
 					}
 				} break;
 			}
-			updateScreen();
 		}
 	}
 };
