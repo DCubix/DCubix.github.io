@@ -24,7 +24,7 @@ let parser = new Parser({
 	comment: /;.*/,
 	string: /"(\\.|[^"\r\n])*"?|'(\\.|[^'\r\n])*'?/,
 	number: /0x[\dA-Fa-f]+|-?(\d+\.?\d*|\.\d+)/,
-	keyword: /(rdi|lda|add|stm|sub|jnz|jez|jmp|out|mod|sys)/,
+	keyword: /(rdi|lda|add|stm|sub|jnz|jez|out|mod|sys|call|ret|push|pop|hlt)/,
 	variable: /AC|[\$\%\@](\->|\w)+(?!\w)|\${\w*}?/,
 	op: /[\+\-\*\/=<>!]=?|[\(\)\{\}\[\]\.\|]/,
 	label: /.*:/,
@@ -151,6 +151,8 @@ let HPTR = 0;
 let PROG = [];
 let PROG_DATA = [];
 let PROG_OUT = [];
+let CALL_STACK = [];
+let STACK = [];
 let LABELS = {};
 let PC = 0;
 let AC = 0;
@@ -372,6 +374,9 @@ let HV1 = Object.freeze({
 			HV1.println(" RESET: Resets the system");
 			HV1.println(" CLEAR: Clears the screen");
 			HV1.println(" CRT: Toggle CRT Effect");
+			HV1.println("┌──────────────────────────────────────┐");
+			HV1.println("│  !! Press [ESC] for a hard reset !!  │");
+			HV1.println("└──────────────────────────────────────┘");
 		} else {
 			if (cmd === "HV1") {
 				HV1.println("┌──────────────────────────────────────┐");
@@ -389,13 +394,17 @@ let HV1 = Object.freeze({
 				HV1.println(" rdi M: Reads user input into M");
 				HV1.println(" out V: Outputs a value V");
 				HV1.println(" lda V: Loads a value V into AC");
-				HV1.println(" stm V: Stores a V into a memory. loc");
-				HV1.println(" jmp T: Jumps to T");
+				HV1.println(" stm V: Stores AC into a mem. loc. V");
 				HV1.println(" jnz V T: Jumps to T if V is not zero");
 				HV1.println(" add V: Adds a value V into AC");
 				HV1.println(" sub V: Subtracts a value V from AC");
 				HV1.println(" mod V: Modulo of AC with a value V");
 				HV1.println(" sys SSPP: Exec. sys call S with arg P");
+				HV1.println(" call M: Calls the macro M");
+				HV1.println(" ret: Returns from a macro");
+				HV1.println(" push V: Pushes a value to the stack");
+				HV1.println(" pop V: Pops val. from stack into V");
+				HV1.println(" hlt: Stops the program");
 			} else {
 				HV1.prog_help();
 			}
@@ -403,8 +412,11 @@ let HV1 = Object.freeze({
 	},
 
 	prog_load: function() {
+		CALL_STACK = [];
+		STACK = [];
 		PROG_OUT = [];
 		PROG = [];
+		PROG_DATA = [];
 		LABELS = {};
 		PC = 0;
 		AC = 0;
@@ -444,7 +456,7 @@ let HV1 = Object.freeze({
 			let ln = line.trim();
 			PROG_DATA.push(ln);
 		}
-		console.log(PROG_DATA);
+		console.log(PROG);
 
 		HV1.println("Ok!");
 	},
@@ -516,6 +528,8 @@ let HV1 = Object.freeze({
 		PC = 0;
 		AC = 0;
 		MEM.fill(0);
+		CALL_STACK = [];
+		STACK = [];
 		PROMPT = 0;
 		PROMPT_CALLBACK = null;
 		PROMPT_X = 0;
@@ -541,6 +555,10 @@ let HV1 = Object.freeze({
 			HV1.println("No program loaded.");
 			return false;
 		}
+		if (PC >= PROG.length) {
+			HV1.prog_reset(false);
+			return false;
+		}
 
 		if (!hidemem) HV1.prog_mem();
 
@@ -549,7 +567,7 @@ let HV1 = Object.freeze({
 				HV1.println("ERR(" + line() + "): Invalid address.");
 				return 0xF;
 			}
-			addr = parseInt(addr.substring(1));
+			addr = parseInt(addr.substring(1), 16);
 			if (addr > 0xF) {
 				HV1.println("ERR(" + line() + "): Invalid address.");
 				return 0xF;
@@ -562,27 +580,27 @@ let HV1 = Object.freeze({
 				HV1.println("ERR(" + line() + "): Invalid address.");
 				return;
 			}
-			addr = parseInt(addr.substring(1));
+			addr = parseInt(addr.substring(1), 16);
 			if (addr > 0xF) {
 				HV1.println("ERR(" + line() + "): Invalid address.");
 				return 0xF;
 			}
 			ledBlink("mem");
-			MEM[addr] = v;
-			if (MEM[addr] > 0xFFFF) {
-				MEM[addr] = 0;
-			} else if (MEM[addr] < 0) {
-				MEM[addr] = 0xFFFF;
-			}
+			MEM[addr] = Math.abs(v) % 0xFFFF;
 		}
 		function next() {
+			if (PC >= PROG.length) return null;
 			return PROG[PC++].val;
 		}
 		function line() {
+			if (PC >= PROG.length) return 0;
 			return PROG[PC].ln;
 		}
 
 		let OPS = {
+			"hlt": function() {
+				PC = PROG.length;
+			},
 			"rdi": function() { // Read a value into a memory location
 				let tgt = next();
 				HV1.prompt(function(val) {
@@ -654,13 +672,13 @@ let HV1 = Object.freeze({
 				}
 				if (pmt) HV1.prog_process("");
 			},
-			"jmp": function() { // Jumps
-				let to = next();
-				if (isNaN(to)) to = LABELS[to];
-				else to = parseInt(to);
-				PC = to;
-				if (pmt) HV1.prog_process("");
-			},
+			// "jmp": function() { // Jumps
+			// 	let to = next();
+			// 	if (isNaN(to)) to = LABELS[to];
+			// 	else to = parseInt(to);
+			// 	PC = to;
+			// 	if (pmt) HV1.prog_process("");
+			// },
 			"jnz": function() { // Jumps if value is not zero (jnz 0 loop, jnz AC lbl, jnz $2 lbl)
 				let val = next();
 				let to = next();
@@ -738,11 +756,50 @@ let HV1 = Object.freeze({
 					default: HV1.println("ERR(" + line() + "): Unknown sys call."); break;
 				}
 				if (pmt) HV1.prog_process("");
+			},
+			"call": function() { // Call a macro
+				let lbl = next();
+				if (isNaN(lbl)) lbl = LABELS[lbl];
+				else lbl = parseInt(lbl);
+				if (!lbl) {
+					HV1.println("ERR(" + line() + "): Invalid label.");
+				} else {
+					CALL_STACK.push(PC);
+					PC = lbl;
+				}
+				if (pmt) HV1.prog_process("");
+			},
+			"ret": function() { // Return from a macro
+				if (CALL_STACK.length === 0) {
+					HV1.println("ERR(" + line() + "): Invalid return.");
+				} else PC = CALL_STACK.pop();
+				if (pmt) HV1.prog_process("");
+			},
+			"push": function() { // Push a value to the stack
+				let val = next();
+				if (isNaN(val)) {
+					if (val == "AC") val = AC;
+					else val = read(val);
+				} else {
+					val = parseInt(val);
+				}
+				STACK.push(val);
+				if (pmt) HV1.prog_process("");
+			},
+			"pop": function() { // Pops a value to the stack into a memory loc or AC
+				let to = next();
+				if (isNaN(to)) {
+					if (to === "AC") AC = STACK.pop();
+					else write(to, STACK.pop());
+				} else {
+					HV1.println("ERR(" + line() + "): Invalid arg.");
+				}
+				if (pmt) HV1.prog_process("");
 			}
 		};
 
 		let op = next();
-		OPS[op]();
+		if (op) OPS[op]();
 		ledBlink("cpu");
 
 		return true;
@@ -855,6 +912,8 @@ window.onkeydown = function(e) {
 		PROMPT_TEXT = cmd.split("");
 		HV1.print(cmd, true);
 		HPTR++;
+	} else if (e.key === "Escape") {
+		HV1.prog_reset(true);
 	} else {
 		if (PROMPT !== 0 && e.which !== 13) {
 			BLINK = true;
@@ -904,19 +963,56 @@ SCR.focus();
 /// Start
 window.onload = function() {
 	DISK.value =
-`  ;; Print even values
-  rdi $0
-_check:
-  lda $0
-  mod 2
-  jnz AC _sub
-  out $0
-_sub:
-  lda $0
+`  rdi $0
+  rdi $1
+  push $1
+  push $0
+  call div
+  out $C
+  hlt
+
+mul:
+  pop $A
+  pop $B
+  lda $A
+  stm $D
+mul_body:
+  lda $C
+  add $B
+  stm $C
+  lda $D
   sub 1
-  stm $0
-  jnz AC _check
-  out $0`;
+  stm $D
+  jnz $D mul_body
+  ret
+
+div:
+  pop $A
+  pop $B
+div_body:
+  lda $A
+  sub $B
+  stm $A
+  lda $C
+  add 1
+  stm $C
+  jnz $A div_body
+  ret
+
+`;
+// `  ;; Print even values
+//   rdi $0
+// _check:
+//   lda $0
+//   mod 2
+//   jnz AC _sub
+//   out $0
+// _sub:
+//   lda $0
+//   sub 1
+//   stm $0
+//   jnz AC _check
+//   out $0`;
 	decorator = new TextareaDecorator(DISK, parser);
 	HV1.prog_reset();
 	main();
