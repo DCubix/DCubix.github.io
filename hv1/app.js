@@ -153,10 +153,12 @@ let PROG_DATA = [];
 let PROG_OUT = [];
 let CALL_STACK = [];
 let STACK = [];
+let MIN_MEM = 0xFF;
+let MAX_MEM = 0;
 let LABELS = {};
 let PC = 0;
 let AC = 0;
-let MEM = new Array(16); MEM.fill(0);
+let MEM = new Array(256); MEM.fill(0);
 ///
 
 String.prototype.setCharAt = function(index, chr) {
@@ -539,9 +541,13 @@ let HV1 = Object.freeze({
 			PROG = [];
 			PROG_DATA = [];
 			LABELS = {};
+
+			let memf = "Mem.: " + MEM.length + "bytes";
+			let bts = " ".repeat(16 - memf.length);
 			HV1.clear();
 			HV1.println("┌──────────────────────────────────────┐");
 			HV1.println("│  HV-1 Computer System - v1.0         │");
+			HV1.println("│  " + memf + bts + "                    │");
 			HV1.println("├──────────────────────────────────────┤");
 			HV1.println("│  Type HELP or ? for a list           │");
 			HV1.println("│  of commands.                        │");
@@ -572,6 +578,8 @@ let HV1 = Object.freeze({
 				HV1.println("ERR(" + line() + "): Invalid address.");
 				return 0xF;
 			}
+			MIN_MEM = Math.min(MIN_MEM, addr);
+			MAX_MEM = Math.max(MAX_MEM, addr);
 			ledBlink("mem");
 			return parseInt(MEM[addr]);
 		}
@@ -585,8 +593,10 @@ let HV1 = Object.freeze({
 				HV1.println("ERR(" + line() + "): Invalid address.");
 				return 0xF;
 			}
+			MIN_MEM = Math.min(MIN_MEM, addr);
+			MAX_MEM = Math.max(MAX_MEM, addr);
 			ledBlink("mem");
-			MEM[addr] = Math.abs(v) % 0xFFFF;
+			MEM[addr] = v < 0 ? 0 : v % 0xFFFF;
 		}
 		function next() {
 			if (PC >= PROG.length) return null;
@@ -877,16 +887,19 @@ let HV1 = Object.freeze({
 		}
 
 		// DRAW MEM
-		y = 3;
-		for (let i = 0; i < MEM.length; i++) {
-			HV1.cursor(28, y);
-			HV1.print(i.toString(16).toUpperCase() + ": " + String("0000000" + MEM[i]).slice(-7), true);
-			y++;
+		if (MIN_MEM < MAX_MEM) {
+			y = 3;
+			for (let i = MIN_MEM; i <= MAX_MEM; i++) {
+				HV1.cursor(28, y);
+				let id = String("0x00" + i.toString(16).toUpperCase()).slice(-2);
+				HV1.print(id + ": " + String("00000" + MEM[i]).slice(-5), true);
+				y++;
+			}
 		}
 
 		// DRAW AC
 		HV1.cursor(2, 18);
-		HV1.print("        " + String("0000000" + AC).slice(-7), true);
+		HV1.print("        " + String("00000" + AC).slice(-5), true);
 
 		HV1.cursor(0, 22);
 	}
