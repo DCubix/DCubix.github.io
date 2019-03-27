@@ -24,7 +24,7 @@ let parser = new Parser({
 	comment: /;.*/,
 	string: /"(\\.|[^"\r\n])*"?|'(\\.|[^'\r\n])*'?/,
 	number: /0x[\dA-Fa-f]+|-?(\d+\.?\d*|\.\d+)/,
-	keyword: /(rdi|lda|add|stm|sub|jnz|jmp|out|mod|sys)/,
+	keyword: /(rdi|lda|add|stm|sub|jnz|jez|jmp|out|mod|sys)/,
 	variable: /AC|[\$\%\@](\->|\w)+(?!\w)|\${\w*}?/,
 	op: /[\+\-\*\/=<>!]=?|[\(\)\{\}\[\]\.\|]/,
 	label: /.*:/,
@@ -675,6 +675,22 @@ let HV1 = Object.freeze({
 				else to = parseInt(to);
 
 				if (val !== 0) PC = to;
+				if (pmt) HV1.prog_process("");
+			},
+			"jez": function() { // Jumps if value is zero (jez 0 loop, jez AC lbl, jez $2 lbl)
+				let val = next();
+				let to = next();
+				if (isNaN(val)) {
+					if (val === "AC") val = AC;
+					else val = read(val);
+				} else {
+					val = parseInt(val);
+				}
+
+				if (isNaN(to)) to = LABELS[to];
+				else to = parseInt(to);
+
+				if (val === 0) PC = to;
 				if (pmt) HV1.prog_process("");
 			},
 			"mod": function() { // Calculates the modulo (rest of division) of a value between AC and X
