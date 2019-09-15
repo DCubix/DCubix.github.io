@@ -4,25 +4,13 @@
 		<meta charset="utf-8">
 		<title>HV-1</title>
 		<link rel="stylesheet" href="./style.css" />
-		<link rel="stylesheet" type="text/css" href="./LDT/lib/TextareaDecorator.css">
 	</head>
 	<body>
 		<div class="content">
-			<div class="computer">
-				<canvas id="screen" width="386" height="386" tabindex="1"></canvas>
-				<div id="leds">
-					<div id="cpu" class="led" title="CPU"></div>
-					<div id="mem" class="led" title="Memory"></div>
-				</div>
-				<div id="codeArea">
-					<div id="closeCode" class="close" title="Close"></div>
-					<textarea id="code" class="ldt"></textarea>
-				</div>
-				<div id="floppy" title="Click to open the code editor"></div>
+			<div class="screen">
+				<canvas id="buffer" tabindex="1">Error!</canvas>
 			</div>
 		</div>
-		<script src="./LDT/lib/Parser.js" type="text/javascript"></script>
-		<script src="./LDT/lib/TextareaDecorator.js" type="text/javascript"></script>
 		<script type="text/javascript" src="app.js"></script>
 	</body>
 </html>

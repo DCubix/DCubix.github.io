@@ -1,1032 +1,836 @@
-let DISK = document.getElementById("code");
-let DISK_AREA = document.getElementById("floppy");
-let CLOSE_CODE = document.getElementById("closeCode");
-let CODE_AREA = document.getElementById("codeArea");
-CODE_AREA.style.height = "0";
-CODE_AREA.style.visibility = "hidden";
-
-// UI logic
-DISK_AREA.onclick = function() {
-	setTimeout(function() {
-		CODE_AREA.style.visibility = "visible";
-		CODE_AREA.style.height = "300px";
-	}, 2);
-};
-
-CLOSE_CODE.onclick = function() {
-	CODE_AREA.style.height = "0";
-	setTimeout(function() { CODE_AREA.style.visibility = "hidden"; }, 300);
-};
-
-// Syntax
-let parser = new Parser({
-	whitespace: /\s+/,
-	comment: /;.*/,
-	string: /"(\\.|[^"\r\n])*"?|'(\\.|[^'\r\n])*'?/,
-	number: /0x[\dA-Fa-f]+|-?(\d+\.?\d*|\.\d+)/,
-	keyword: /(rdi|lda|add|stm|sub|jnz|jez|out|mod|sys|call|ret|push|pop|hlt)/,
-	variable: /AC|[\$\%\@](\->|\w)+(?!\w)|\${\w*}?/,
-	op: /[\+\-\*\/=<>!]=?|[\(\)\{\}\[\]\.\|]/,
-	label: /.*:/,
-	other: /\S+/,
-});
-let decorator;
-//
-
-/// Screen
-let SCREEN_WIDTH = 40;
-let SCREEN_HEIGHT = 24;
-let crtEffect = true;
-
-// Setup rendering
-let SCR = document.getElementById("screen");
-let GL = SCR.getContext("webgl");
-let BUF = document.createElement("canvas");
-BUF.width = 256;
-BUF.height = 256;
-let bufCtx = BUF.getContext("2d");
-
-GL.clearColor(0.0, 0.0, 0.0, 1.0);
-GL.clear(GL.COLOR_BUFFER_BIT);
-
-let plane = [
-	0.0, 0.0,
-	1.0, 0.0,
-	1.0, 1.0,
-	1.0, 1.0,
-	0.0, 1.0,
-	0.0, 0.0
-];
-
-let planeBuf = GL.createBuffer();
-GL.bindBuffer(GL.ARRAY_BUFFER, planeBuf);
-GL.bufferData(GL.ARRAY_BUFFER, new Float32Array(plane), GL.STATIC_DRAW);
-GL.bindBuffer(GL.ARRAY_BUFFER, null);
-
-let screenTex = GL.createTexture();
-GL.bindTexture(GL.TEXTURE_2D, screenTex);
-GL.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_MIN_FILTER, GL.LINEAR_MIPMAP_LINEAR);
-GL.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_MAG_FILTER, GL.LINEAR);
-GL.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_S, GL.CLAMP_TO_EDGE);
-GL.texParameteri(GL.TEXTURE_2D, GL.TEXTURE_WRAP_T, GL.CLAMP_TO_EDGE);
-GL.pixelStorei(GL.UNPACK_FLIP_Y_WEBGL, true);
-GL.pixelStorei(GL.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
-GL.texImage2D(GL.TEXTURE_2D, 0, GL.RGBA, BUF.width, BUF.height, 0, GL.RGBA, GL.UNSIGNED_BYTE, null);
-GL.generateMipmap(GL.TEXTURE_2D);
-GL.bindTexture(GL.TEXTURE_2D, null);
-
-let vCode = `precision highp float;
-attribute vec2 vPos;
-varying vec2 texCoord;
-void main() {
-	gl_Position = vec4(vPos * 2.0 - 1.0, 0.0, 1.0);
-	texCoord = vPos;
-}`;
-let fCode = `precision mediump float;
-uniform sampler2D tex;
-uniform float crt;
-varying vec2 texCoord;
-
-void main() {
-		float scale = 0.85;
-		float iscale = 1.0 - scale;
-	vec2 uv = texCoord * scale + (iscale * 0.5);
-	// lens distortion coefficient (between
-		float k = 0.2;
-	// cubic distortion value
-		float kcube = 0.6;
-	float r2 = (uv.x-0.5)*(uv.x-0.5) + (uv.y-0.5)*(uv.y-0.5);
-	float f = 0.0;
-
-	if (kcube == 0.0) {
-		f = 1.0 + r2 * k;
-	} else {
-		f = 1.0 + r2 * (k + kcube * sqrt(r2));
+String.prototype.format = function() {
+	a = this;
+	for (k in arguments) {
+		a = a.replace("{" + k + "}", arguments[k])
 	}
-	float x = f*(uv.x-0.5)+0.5;
-	float y = f*(uv.y-0.5)+0.5;
-
-	vec2 tuv = texCoord;
-	if (crt >= 0.5) {
-		tuv = vec2(x, y);
-	}
-
-	vec4 col = texture2D(tex, tuv);
-	gl_FragColor = col;
-}`;
-
-let vs = GL.createShader(GL.VERTEX_SHADER);
-GL.shaderSource(vs, vCode);
-GL.compileShader(vs);
-
-let fs = GL.createShader(GL.FRAGMENT_SHADER);
-GL.shaderSource(fs, fCode);
-GL.compileShader(fs);
-
-let prog = GL.createProgram();
-GL.attachShader(prog, vs);
-GL.attachShader(prog, fs);
-GL.linkProgram(prog);
-
-let vPos = GL.getAttribLocation(prog, "vPos");
-let tex = GL.getUniformLocation(prog, "tex");
-let crt = GL.getUniformLocation(prog, "crt");
-//
-
-let SCREEN = new Array(SCREEN_HEIGHT);
-let CX = 0, CY = 0, SX = 0, SY = 0;
-let BLINK = false;
-
-/// Input
-let PROMPT_NORMAL = 1;
-let PROMPT_PASSWORD = 2;
-let PROMPT_X = 0;
-let PROMPT = 0;
-let PROMPT_TEXT = [];
-let PROMPT_CALLBACK = null;
-let CMD_HISTORY = [];
-let HPTR = 0;
-
-/// Assembler
-let PROG = [];
-let PROG_DATA = [];
-let PROG_OUT = [];
-let CALL_STACK = [];
-let STACK = [];
-let MIN_MEM = 0xFF;
-let MAX_MEM = 0;
-let LABELS = {};
-let PC = 0;
-let AC = 0;
-let MEM = new Array(256); MEM.fill(0);
-///
-
-String.prototype.setCharAt = function(index, chr) {
-	if(index > this.length - 1) return this;
-	return this.substr(0, index) + chr + this.substr(index + 1);
+	return a
 };
 
-String.prototype.insert = function(index, chr) {
-	if(index > this.length - 1) return this;
-	return [this.slice(0, index), chr, this.slice(index)].join("");
-};
-String.prototype.remove = function(index) {
-	if(index > this.length - 1) return this;
-	return [this.slice(0, index), this.slice(index+1)].join("");
+Array.prototype.insert = function ( index, item ) {
+	this.splice( index, 0, item );
 };
 
-for (let i = 0; i < SCREEN_HEIGHT; i++) {
-	SCREEN[i] = " ".repeat(SCREEN_WIDTH);
-}
+const sw = 255;
+const sh = 240;
+const cw = 6;
+const ch = 8;
+const cbw = ~~(sw / cw);
+const cbh = ~~(sh / ch);
+let Video = {
+	_ctx: null,
+	_bctx: null,
+	_canvas: null,
+	_buffer: null,
+	_data: null,
+	_font: [
+		[0x00,0x00,0x00,0x00,0x00], //
+		[0x2f,0x00,0x00,0x00,0x00], // !
+		[0x03,0x00,0x03,0x00,0x00], // "
+		[0x14,0x3e,0x14,0x3e,0x14], // #
+		[0x2e,0x6a,0x2b,0x3a,0x00], // $
+		[0x26,0x12,0x08,0x24,0x32], // %
+		[0x1c,0x17,0x15,0x34,0x00], // &
+		[0x03,0x00,0x00,0x00,0x00], // '
+		[0x1e,0x21,0x00,0x00,0x00], // (
+		[0x21,0x1e,0x00,0x00,0x00], // )
+		[0x22,0x08,0x1c,0x08,0x22], // *
+		[0x08,0x1c,0x08,0x00,0x00], // +
+		[0x40,0x20,0x00,0x00,0x00], // ,
+		[0x08,0x08,0x00,0x00,0x00], // -
+		[0x20,0x00,0x00,0x00,0x00], // .
+		[0x20,0x10,0x08,0x04,0x02], // /
+		[0x3f,0x21,0x21,0x3f,0x00], // 0
+		[0x01,0x3f,0x00,0x00,0x00], // 1
+		[0x3d,0x25,0x25,0x27,0x00], // 2
+		[0x25,0x25,0x25,0x3f,0x00], // 3
+		[0x07,0x04,0x04,0x3f,0x00], // 4
+		[0x27,0x25,0x25,0x3d,0x00], // 5
+		[0x3f,0x25,0x25,0x3d,0x00], // 6
+		[0x01,0x39,0x05,0x03,0x00], // 7
+		[0x3f,0x25,0x25,0x3f,0x00], // 8
+		[0x27,0x25,0x25,0x3f,0x00], // 9
+		[0x28,0x00,0x00,0x00,0x00], // :
+		[0x40,0x28,0x00,0x00,0x00], // ;
+		[0x04,0x0a,0x11,0x00,0x00], // <
+		[0x14,0x14,0x00,0x00,0x00], // =
+		[0x11,0x0a,0x04,0x00,0x00], // >
+		[0x01,0x2d,0x05,0x07,0x00], // ?
+		[0x3f,0x21,0x3d,0x25,0x1f], // @
+		[0x3f,0x09,0x09,0x3f,0x00], // A
+		[0x3f,0x25,0x27,0x3c,0x00], // B
+		[0x3f,0x21,0x21,0x21,0x00], // C
+		[0x3f,0x21,0x21,0x1e,0x00], // D
+		[0x3f,0x25,0x25,0x25,0x00], // E
+		[0x3f,0x05,0x05,0x05,0x00], // F
+		[0x3f,0x21,0x25,0x3d,0x00], // G
+		[0x3f,0x04,0x04,0x3f,0x00], // H
+		[0x21,0x3f,0x21,0x00,0x00], // I
+		[0x38,0x20,0x21,0x3f,0x01], // J
+		[0x3f,0x04,0x04,0x3b,0x00], // K
+		[0x3f,0x20,0x20,0x20,0x00], // L
+		[0x3f,0x01,0x3f,0x01,0x3f], // M
+		[0x3f,0x02,0x04,0x3f,0x00], // N
+		[0x3f,0x21,0x21,0x3f,0x00], // O
+		[0x3f,0x09,0x09,0x0f,0x00], // P
+		[0x3f,0x21,0x31,0x3f,0x00], // Q
+		[0x3f,0x09,0x39,0x2f,0x00], // R
+		[0x27,0x25,0x25,0x3d,0x00], // S
+		[0x01,0x01,0x3f,0x01,0x01], // T
+		[0x3f,0x20,0x20,0x3f,0x00], // U
+		[0x0f,0x10,0x30,0x1f,0x00], // V
+		[0x3f,0x20,0x3f,0x20,0x3f], // W
+		[0x3b,0x04,0x04,0x3b,0x00], // X
+		[0x0f,0x08,0x38,0x0f,0x00], // Y
+		[0x31,0x29,0x25,0x23,0x00], // Z
+		[0x3f,0x21,0x00,0x00,0x00], // [
+		[0x20,0x10,0x08,0x04,0x02], // "\"
+		[0x21,0x3f,0x00,0x00,0x00], // ]
+		[0x02,0x01,0x01,0x02,0x00], // ^
+		[0x20,0x20,0x00,0x00,0x00], // _
+		[0x01,0x02,0x00,0x00,0x00], // `
+		[0x38,0x24,0x24,0x3c,0x00], // a
+		[0x3f,0x24,0x24,0x3c,0x00], // b
+		[0x3c,0x24,0x24,0x24,0x00], // c
+		[0x3c,0x24,0x24,0x3f,0x00], // d
+		[0x3c,0x2c,0x2c,0x2c,0x00], // e
+		[0x04,0x3f,0x05,0x00,0x00], // f
+		[0xbc,0xa4,0xa4,0xfc,0x00], // g
+		[0x3f,0x04,0x04,0x3c,0x00], // h
+		[0x3d,0x00,0x00,0x00,0x00], // i
+		[0x80,0xfd,0x00,0x00,0x00], // j
+		[0x3f,0x08,0x08,0x34,0x00], // k
+		[0x3f,0x00,0x00,0x00,0x00], // l
+		[0x3c,0x04,0x3c,0x04,0x3c], // m
+		[0x3c,0x04,0x04,0x3c,0x00], // n
+		[0x3c,0x24,0x24,0x3c,0x00], // o
+		[0xfc,0x24,0x24,0x3c,0x00], // p
+		[0x3c,0x24,0x24,0xfc,0x00], // q
+		[0x3c,0x08,0x04,0x00,0x00], // r
+		[0x2c,0x2c,0x2c,0x3c,0x00], // s
+		[0x04,0x3f,0x24,0x00,0x00], // t
+		[0x3c,0x20,0x20,0x3c,0x00], // u
+		[0x0c,0x10,0x30,0x1c,0x00], // v
+		[0x3c,0x20,0x3c,0x20,0x3c], // w
+		[0x34,0x08,0x08,0x34,0x00], // x
+		[0xbc,0xa0,0xa0,0xfc,0x00], // y
+		[0x24,0x34,0x2c,0x24,0x00], // z
+		[0x04,0x3f,0x21,0x00,0x00], // [
+		[0x3f,0x00,0x00,0x00,0x00], // |
+		[0x21,0x3f,0x04,0x00,0x00], // ]
+		[0x01,0x02,0x02,0x01,0x00], // ~
+		[0xFF,0xFF,0xFF,0xFF,0xFF]
+	],
 
-let blinkTime = 0.0;
-let lastTime = Date.now() / 1000.0;
-let timeStep = 1.0 / 120;
-function main() {
-	let canRender = false;
-	let current = Date.now() / 1000.0;
-	let delta = current - lastTime;
-	lastTime = current;
+	_charBuffer: null,
+	_cursor: [0, 0],
+	_blink: false,
 
-	while (delta >= 0) {
-		let dt = Math.min(delta, timeStep);
+	init: function() {
+		Video._canvas = document.getElementById("buffer");
+		Video._canvas.width = sw * 2;
+		Video._canvas.height = sh * 2;
+		Video._ctx = Video._canvas.getContext("2d");
+		Video._ctx.imageSmoothingEnabled = false;
+		Video._buffer = document.createElement("canvas");
+		Video._buffer.width = sw;
+		Video._buffer.height = sh;
+		Video._bctx = Video._buffer.getContext("2d");
+		Video._data = Video._bctx.getImageData(0, 0, sw, sh);
 
-		blinkTime += dt;
-		if (blinkTime >= 0.5) {
-			BLINK = !BLINK;
-			blinkTime = 0.0;
-		}
+		Video.clear(0);
+		Video._canvas.focus();
 
-		canRender = true;
-		delta -= timeStep;
-	}
+		setInterval(function() {
+			Video._blink = !Video._blink;
+			let x = Video._cursor[0] * cw;
+			let y = Video._cursor[1] * ch;
+			Video._clear(0);
+			if (Video._blink)
+				Video.chrData(x, y, [0xFF, 0xFF, 0xFF, 0xFF, 0xFF], 255);
+			Video.flip();
+		}, 250);
+	},
+	put: function(x, y, val) {
+		if (x < 0 || x >= sw || y < 0 || y >= sh) return;
+		let i = (x + y * sw) * 4;
 
-	if (canRender) {
-		updateScreen();
-
-		bufCtx.fillStyle = "#000";
-		bufCtx.fillRect(0, 0, BUF.width, BUF.height);
-		bufCtx.font = "10px Terminal, monospace";
-		bufCtx.fillStyle = "#87bafd";
-		bufCtx.imageSmoothingEnabled = false;
-
-		let ox = 16;//27;
-		let oy = 16;//23;
-		let h = 9.45;
-		let ty = h/2 + oy;
-		for (let i = 0; i < SCREEN_HEIGHT; i++) {
-			let txt = SCREEN[i];
-			if (CY === i && BLINK) {
-				txt = [txt.slice(0, CX), "_", txt.slice(CX)].join("");
+		Video._data.data[i + 0] = val;
+		Video._data.data[i + 1] = val;
+		Video._data.data[i + 2] = val;
+		Video._data.data[i + 3] = 255;
+	},
+	chrData: function(x, y, chr, v) {
+		for (let j = 0; j < cw; j++) {
+			for (let i = 0; i < ch; i++) {
+				if (chr[j] & (1 << i)) {
+					Video.put(x + j, y + i, v || 255);
+				}
 			}
-			bufCtx.fillText(txt, ox, ty);
-			ty += h;
 		}
+		return x + cw;
+	},
+	chr: function(x, y, chrCode) {
+		let c = chrCode.charCodeAt(0) & 0x7F;
+		if (c < 32) c = 0;
+		else c -= 32;
 
-		GL.viewport(0, 0, SCR.width, SCR.height);
-		GL.clear(GL.COLOR_BUFFER_BIT);
+		let chr = Video._font[c];
+		return Video.chrData(x, y, chr);
+	},
+	clear: function(v) {
+		Video._charBuffer = new Array(cbh);
+		for (let i = 0; i < Video._charBuffer.length; i++) {
+			Video._charBuffer[i] = new Array(cbw);
+			for (let j = 0; j < Video._charBuffer[i].length; j++) {
+				Video._charBuffer[i][j] = " ";
+			}
+		}
+		Video._clear(v);
+	},
+	_clear: function(v) {
+		v = v || 0;
+		for (let y = 0; y < sh; y++) {
+			for (let x = 0; x < sw; x++) {
+				Video.put(x, y, v);
+			}
+		}
+		Video.flip();
+	},
+	_flipBuffer: function() {
+		for (let y = 0; y < cbh; y++) {
+			for (let x = 0; x < cbw; x++) {
+				let chr = Video._charBuffer[y][x];
+				if (chr === " ") continue;
+				Video.chr(x * cw, y * ch, chr);
+			}
+		}
+	},
+	flip: function() {
+		Video._flipBuffer();
+		Video._bctx.fillStyle = "#000";
+		Video._bctx.fillRect(0, 0, sw, sh);
+		Video._bctx.putImageData(Video._data, 0, 0);
+		Video._ctx.drawImage(Video._buffer, 0, 0, sw * 2, sh * 2);
+	},
 
-		GL.activeTexture(GL.TEXTURE0);
-		GL.bindTexture(GL.TEXTURE_2D, screenTex);
+	/**
+	 * @param {string} c
+	 */
+	putc: function(c) {
+		if (!c) return;
+		if (c === "\n") {
+			Video._cursor[0] = 0;
+			Video._cursor[1]++;
+		} else if (c === "\t") {
+			Video._cursor[0] += 2;
+		} else {
+			let code = c.charCodeAt(0);
+			code &= 0x7F;
+			c = String.fromCharCode(code);
+			Video._charBuffer[Video._cursor[1]][Video._cursor[0]] = c;
+			Video.chr(Video._cursor[0] * cw, Video._cursor[1] * ch, c);
+			Video._cursor[0]++;
+		}
+		Video._fixCursor();
+	},
 
-		GL.useProgram(prog);
-		GL.uniform1i(tex, 0);
-		GL.uniform1f(crt, crtEffect ? 1.0 : 0.0);
+	/**
+	 * @param {string} text
+	 */
+	print: function(text) {
+		for (let i = 0; i < text.length; i++) {
+			let chr = text.charAt(i);
+			Video.putc(chr);
+		}
+	},
 
-		GL.bindBuffer(GL.ARRAY_BUFFER, planeBuf);
-		GL.enableVertexAttribArray(vPos);
-		GL.vertexAttribPointer(vPos, 2, GL.FLOAT, false, 0, 0);
+	/**
+	 * @param {string} text
+	 */
+	println: function(text) {
+		Video.print(text + "\n");
+	},
 
-		GL.drawArrays(GL.TRIANGLES, 0, 6);
+	_fixCursor: function() {
+		if (Video._cursor[0] >= cbw) {
+			Video._cursor[0] = 0;
+			Video._cursor[1]++;
+		}
+		if (Video._cursor[1] >= cbh) {
+			Video._charBuffer.shift();
 
-		GL.bindTexture(GL.TEXTURE_2D, null);
+			Video._charBuffer.push(new Array(cbw));
+			for (let x = 0; x < cbw; x++) {
+				Video._charBuffer[Video._charBuffer.length - 1][x] = " ";
+			}
+
+			Video._cursor[1]--;
+		}
+		Video._clear(0);
+		Video.flip();
 	}
+};
+Video.init();
 
-	window.requestAnimationFrame(main);
-}
+let RAM = {
+	_data: [],
+	init: function() {
+		RAM._data = new Array(1024 * 16);
+		for (let i = 0; i < RAM._data.length; i++) RAM._data[i] = 0;
+	},
+	read: function(addr) {
+		addr = addr || 0;
+		addr = addr % RAM._data.length;
+		return RAM._data[addr];
+	},
+	write: function(addr, v) {
+		addr = addr || 0;
+		addr = addr % RAM._data.length;
+		v = v || 0;
+		v = v % 0xFF;
+		RAM._data[addr] = v;
+	},
+	load: function(offset, program) {
+		program = program || [];
+		offset = offset || 0;
 
-function updateScreen() {
-	GL.bindTexture(GL.TEXTURE_2D, screenTex);
-	GL.texSubImage2D(GL.TEXTURE_2D, 0, 0, 0, GL.RGBA, GL.UNSIGNED_BYTE, BUF);
-	GL.generateMipmap(GL.TEXTURE_2D);
-	GL.bindTexture(GL.TEXTURE_2D, null);
-}
+		if (program.length + offset >= RAM._data.length) return;
 
-function ledBlink(id) {
-	let elem = document.getElementById(id);
-	elem.style.backgroundPositionY = "-12px";
-	setTimeout(function() {
-		elem.style.backgroundPositionY = "0";
-	}, 30);
-}
-
-function Reader(input) {
-	this.input = input || [];
-
-	this.peek = function() {
-		if (this.input.length <= 0) return "\0";
-		return this.input[0];
-	};
-
-	this.read = function() {
-		if (this.input.length <= 0) return "\0";
-		return this.input.shift();
-	};
-
-	this.read_while = function(cond) {
-		let ret = [];
-		while (this.input.length > 0 && cond(this.peek())) {
-			ret.push(this.read());
+		for (let i = 0; i < program.length; i++) {
+			RAM.write(i + offset, program[i]);
 		}
-		return ret.join("");
-	};
-}
-
-let HV1 = Object.freeze({
+	},
 	clear: function() {
-		CX = 0;
-		CY = 0;
-		for (let i = 0; i < SCREEN_HEIGHT; i++) {
-			SCREEN[i] = " ".repeat(SCREEN_WIDTH);
+		for (let i = 0; i < RAM._data.length; i++) {
+			RAM.write(i, 0);
 		}
+	}
+};
+RAM.init();
+
+const STATUS_NONE = 0;
+const STATUS_GREATER = 1;
+const STATUS_LESS = 2;
+const STATUS_EQUALS = 5;
+
+let CPU = {
+	accum: [0, 0], // A, B
+	callStack: [],
+	pc: 0,
+	status: 0,
+	_wait: 0,
+	_interrupted: false,
+	_interruptDest: 0,
+	_running: false,
+	_ops: [
+		// NOP 0
+		{ name: "nop", cycles: 1, run: function() {} },
+		// HLT 1
+		{ name: "hlt", cycles: 1, run: function() { CPU._running = false; } },
+
+		// LDA imm (loads an 8bit immediate into A: A = IMM) 2
+		{ name: "lda", cycles: 1, run: function() { let imm = CPU.fetch(); CPU.accum[0] = imm; } },
+		// LMA $mem (loads mem value into register: A = MEM[loc]) 3
+		{ name: "lma", cycles: 2, run: function() {
+			let mem0 = CPU.fetch(),
+				mem1 = CPU.fetch();
+			let mem = (mem0 & 0xFF) << 8 | (mem1 & 0xFF);
+			CPU.accum[0] = RAM.read(mem);
+		}},
+		// STA $mem (stores the A accum value into memory: MEM[loc] = A) 4
+		{ name: "sta", cycles: 2, run: function() {
+			let mem0 = CPU.fetch(),
+				mem1 = CPU.fetch();
+			let mem = (mem0 & 0xFF) << 8 | (mem1 & 0xFF);
+			RAM.write(mem, CPU.accum[0]);
+		}},
+
+		// LDB imm (loads an 8bit immediate into B: B = IMM) 5
+		{ name: "ldb", cycles: 1, run: function() { let imm = CPU.fetch(); CPU.accum[1] = imm; } },
+		// LMB $mem (loads mem value into register: B = MEM[loc]) 6
+		{ name: "lmb", cycles: 2, run: function() {
+			let mem0 = CPU.fetch(),
+				mem1 = CPU.fetch();
+			let mem = (mem0 & 0xFF) << 8 | (mem1 & 0xFF);
+			CPU.accum[1] = RAM.read(mem);
+		}},
+		// STB $mem (stores the B accum value into memory: MEM[loc] = B) 7
+		{ name: "stb",cycles: 2, run: function() {
+			let mem0 = CPU.fetch(),
+				mem1 = CPU.fetch();
+			let mem = (mem0 & 0xFF) << 8 | (mem1 & 0xFF);
+			RAM.write(mem, CPU.accum[1]);
+		}},
+
+		// SOB $mem (stores A into memory offetted by B: MEM[loc + B] = A) 4
+		{ name: "sob", cycles: 2, run: function() {
+			let mem0 = CPU.fetch(),
+				mem1 = CPU.fetch();
+			let mem = (mem0 & 0xFF) << 8 | (mem1 & 0xFF);
+			RAM.write(mem + CPU.accum[1], CPU.accum[0]);
+		}},
+
+		// LAP (loads a value at the memory location stored in AB into A)
+		{ name: "lap", cycles: 2, run: function() {
+			let mem = (CPU.accum[0] & 0xFF) << 8 | (CPU.accum[1] & 0xFF);
+			CPU.accum[0] = RAM.read(mem);
+		}},
+		// LBP (loads a value at the memory location stored in AB into A)
+		{ name: "lbp", cycles: 2, run: function() {
+			let mem = (CPU.accum[0] & 0xFF) << 8 | (CPU.accum[1] & 0xFF);
+			CPU.accum[1] = RAM.read(mem);
+		}},
+
+		// STP imm (stores an immediate at the memory location stored in AB)
+		{ name: "stp", cycles: 2, run: function() {
+			let imm = CPU.fetch();
+			let mem = (CPU.accum[0] & 0xFF) << 8 | (CPU.accum[1] & 0xFF);
+			RAM.write(mem, imm);
+		}},
+
+		// JMP loc 8
+		{ name: "jmp",cycles: 2, run: function() {
+			let loc0 = CPU.fetch(),
+				loc1 = CPU.fetch();
+			let loc = (loc0 & 0xFF) << 8 | (loc1 & 0xFF);
+			CPU.pc = loc;
+		}},
+
+		// CALL loc (calls a subroutine at loc) 9
+		{ name: "call", cycles: 2, run: function() {
+			let loc0 = CPU.fetch(),
+				loc1 = CPU.fetch();
+			let loc = (loc0 & 0xFF) << 8 | (loc1 & 0xFF);
+			CPU.callStack.push(CPU.pc);
+			CPU.pc = loc;
+		}},
+		// RET (returns from subroutine) 10
+		{ name: "ret", cycles: 1, run: function() {
+			CPU.pc = CPU.callStack.pop();
+		}},
+
+		// CMP (compares A and B accumulators) 11
+		{ name: "cmp", cycles: 1, run: function() {
+			let r0 = CPU.accum[0];
+			let r1 = CPU.accum[1];
+			if (r0 == r1) CPU.status = STATUS_EQUALS;
+			else if (r0 > r1) CPU.status = STATUS_GREATER;
+			else if (r0 < r1) CPU.status = STATUS_LESS;
+		}},
+
+		// CAI imm (compares A to immediate) 11
+		{ name: "cai", cycles: 1, run: function() {
+			let r0 = CPU.accum[0];
+			let r1 = CPU.fetch();
+			if (r0 == r1) CPU.status = STATUS_EQUALS;
+			else if (r0 > r1) CPU.status = STATUS_GREATER;
+			else if (r0 < r1) CPU.status = STATUS_LESS;
+		}},
+
+		// CBI imm (compares B to immediate) 11
+		{ name: "cbi", cycles: 1, run: function() {
+			let r0 = CPU.accum[1];
+			let r1 = CPU.fetch();
+			if (r0 == r1) CPU.status = STATUS_EQUALS;
+			else if (r0 > r1) CPU.status = STATUS_GREATER;
+			else if (r0 < r1) CPU.status = STATUS_LESS;
+		}},
+
+		// JEQ loc (jumps if equals: if STATUS == EQ: PC = loc) 12
+		{ name: "jeq", cycles: 2, run: function() {
+			let loc0 = CPU.fetch(),
+				loc1 = CPU.fetch();
+			let loc = (loc0 & 0xFF) << 8 | (loc1 & 0xFF);
+			if (CPU.status === STATUS_EQUALS) CPU.pc = loc;
+		}},
+
+		// JNE loc (jumps if not equals: if STATUS != EQ: PC = loc) 13
+		{ name: "jne", cycles: 2, run: function() {
+			let loc0 = CPU.fetch(),
+				loc1 = CPU.fetch();
+			let loc = (loc0 & 0xFF) << 8 | (loc1 & 0xFF);
+			if (CPU.status !== STATUS_EQUALS) CPU.pc = loc;
+		}},
+
+		// JLT loc (jumps if less than: if STATUS === LT: PC = loc) 14
+		{ name: "jlt", cycles: 2, run: function() {
+			let loc0 = CPU.fetch(),
+				loc1 = CPU.fetch();
+			let loc = (loc0 & 0xFF) << 8 | (loc1 & 0xFF);
+			if (CPU.status === STATUS_LESS) CPU.pc = loc;
+		}},
+
+		// JGT loc (jumps if less than: if STATUS === GT: PC = loc) 15
+		{ name: "jgt", cycles: 2, run: function() {
+			let loc0 = CPU.fetch(),
+				loc1 = CPU.fetch();
+			let loc = (loc0 & 0xFF) << 8 | (loc1 & 0xFF);
+			if (CPU.status === STATUS_GREATER) CPU.pc = loc;
+		}},
+
+		// JLE loc (jumps if less than or equals: if STATUS === LT || STATUS === EQ: PC = loc) 16
+		{ name: "jle", cycles: 2, run: function() {
+			let loc0 = CPU.fetch(),
+				loc1 = CPU.fetch();
+			let loc = (loc0 & 0xFF) << 8 | (loc1 & 0xFF);
+			if (CPU.status === STATUS_LESS || CPU.status === STATUS_EQUALS) CPU.pc = loc;
+		}},
+
+		// JGE loc (jumps if greater than or equals: if STATUS === GT || STATUS === EQ: PC = loc) 17
+		{ name: "jge", cycles: 2, run: function() {
+			let loc0 = CPU.fetch(),
+				loc1 = CPU.fetch();
+			let loc = (loc0 & 0xFF) << 8 | (loc1 & 0xFF);
+			if (CPU.status === STATUS_GREATER || CPU.status === STATUS_EQUALS) CPU.pc = loc;
+		}},
+
+		// ADA imm (adds an 8bit immediate to A: A += IMM) 18
+		{ name: "ada", cycles: 1, run: function() {
+			let imm = CPU.fetch();
+			CPU.accum[0] += imm;
+			CPU.accum[0] &= 0xFF;
+		}},
+		// BTA (adds B value to A: A += Bv) 19
+		{ name: "bta", cycles: 1, run: function() {
+			CPU.accum[0] += CPU.accum[1];
+			CPU.accum[0] &= 0xFF;
+		}},
+		// SBA imm (subtracts an 8bit immediate from A: A -= IMM) 20
+		{ name: "sba", cycles: 2, run: function() {
+			let imm = CPU.fetch();
+			CPU.accum[0] -= imm;
+			CPU.accum[0] &= 0xFF;
+		}},
+		// BFA (subtracts B from A: A -= Bv) 21
+		{ name: "bfa", cycles: 1, run: function() {
+			CPU.accum[0] -= CPU.accum[1];
+			CPU.accum[0] &= 0xFF;
+		}},
+
+		// ADB imm (adds an 8bit immediate to B: B += IMM) 22
+		{ name: "adb", cycles: 1, run: function() {
+			let imm = CPU.fetch();
+			CPU.accum[1] += imm;
+			CPU.accum[1] &= 0xFF;
+		}},
+		// ATB (adds A value to B: B += Av) 23
+		{ name: "atb", cycles: 1, run: function() {
+			CPU.accum[1] += CPU.accum[0];
+			CPU.accum[1] &= 0xFF;
+		}},
+		// SBB imm (subtracts an 8bit immediate from B: B -= IMM) 24
+		{ name: "sbb",  cycles: 2, run: function() {
+			let imm = CPU.fetch();
+			CPU.accum[1] -= imm;
+			CPU.accum[1] &= 0xFF;
+		}},
+		// AFB (subtracts A from B: B -= Av) 25
+		{ name: "afb", cycles: 1, run: function() {
+			CPU.accum[1] -= CPU.accum[0];
+			CPU.accum[1] &= 0xFF;
+		}},
+
+		// ADW imm (adds a 16bit immediate to AB: AB += IMM) 26
+		{ name: "adw", cycles: 2, run: function() {
+			let im0 = CPU.fetch();
+			let im1 = CPU.fetch();
+			let imm = (im0 & 0xFF) << 8 | (im1 & 0xFF);
+			let val = (CPU.accum[0] & 0xFF) << 8 | (CPU.accum[1] & 0xFF);
+			val += imm;
+			CPU.accum[0] = (val & 0xFF00) >> 8;
+			CPU.accum[1] = (val & 0x00FF);
+		}},
+		// SBW imm (subtracts a 16bit immediate from AB: AB -= IMM) 27
+		{ name: "sbw", cycles: 2, run: function() {
+			let im0 = CPU.fetch();
+			let im1 = CPU.fetch();
+			let imm = (im0 & 0xFF) << 8 | (im1 & 0xFF);
+			let val = (CPU.accum[0] & 0xFF) << 8 | (CPU.accum[1] & 0xFF);
+			val -= imm;
+			CPU.accum[0] = (val & 0xFF00) >> 8;
+			CPU.accum[1] = (val & 0x00FF);
+		}},
+
+		// INA (request interrupt and stores resulting byte into A) 28
+		{ name: "ina", cycles: 1, run: function() {
+			CPU._interrupted = true;
+			CPU._interruptDest = 0;
+		}},
+		// INB (request interrupt and stores resulting byte into B) 29
+		{ name: "inb", cycles: 1, run: function() {
+			CPU._interrupted = true;
+			CPU._interruptDest = 1;
+		}},
+
+		// VCI imm (write a character immediate to the video chip) 30
+		{ name: "vci", cycles: 2, run: function() {
+			let chr = CPU.fetch();
+			Video.putc(String.fromCharCode(chr));
+			Video.flip();
+		}},
+		// VCA (write a character from A to the video chip) 31
+		{ name: "vca", cycles: 1, run: function() {
+			Video.putc(String.fromCharCode(CPU.accum[0]));
+			Video.flip();
+		}},
+		// VCB (write a character from B to the video chip) 32
+		{ name: "vcb", cycles: 1, run: function() {
+			Video.putc(String.fromCharCode(CPU.accum[1]));
+			Video.flip();
+		}},
+
+		// RNA (write a random byte to A) 33
+		{ name: "rna", cycles: 2, run: function() {
+			CPU.accum[0] = ~~(Math.random() * 255);
+		}},
+		// RNB (write a random byte to B) 34
+		{ name: "rnb", cycles: 2, run: function() {
+			CPU.accum[1] = ~~(Math.random() * 255);
+		}},
+		// RNW (write a random word to AB) 35
+		{ name: "rnw", cycles: 2, run: function() {
+			let val = ~~(Math.random() * 0xFFFF);
+			CPU.accum[0] = (val & 0xFF00) >> 8;
+			CPU.accum[1] = (val & 0x00FF);
+		}},
+
+		// VPT string+0. (prints a null-terminated immediate string) 36
+		{ name: "vpt", cycles: 2, run: function() {
+			let c = CPU.fetch();
+			while (c !== 0) {
+				Video.putc(String.fromCharCode(c));
+				c = CPU.fetch();
+			}
+			Video.flip();
+		}},
+		// VPM $mem. (prints a null-terminated memory string) 37
+		{ name: "vpm", cycles: 2, run: function() {
+			let mem0 = CPU.fetch(),
+				mem1 = CPU.fetch();
+			let mem = (mem0 & 0xFF) << 8 | (mem1 & 0xFF);
+			let c = RAM.read(mem);
+			while (c !== 0) {
+				Video.putc(String.fromCharCode(c));
+				c = RAM.read(mem++);
+			}
+			Video.flip();
+		}},
+	],
+	fetch: function() {
+		if (CPU.pc >= RAM._data.length) return 0;
+		return RAM.read(CPU.pc++);
 	},
-	_put: function(char, replace) {
-		if (char === "\n" || char === "\r") {
-			CX = 0;
-			HV1._nextline();
+	tick: function() {
+		if (CPU._interrupted) {
+			return;
+		}
+
+		if (CPU._wait > 0) {
+			CPU._wait--;
 		} else {
-			if (CY > SCREEN_HEIGHT-1) {
-				CY--;
-			}
-			if (replace) {
-				SCREEN[CY] = SCREEN[CY].setCharAt(CX, char);
-			} else {
-				let txt = SCREEN[CY];
-				txt = txt.insert(CX, char);
-				SCREEN[CY] = txt;
-			}
-			CX++;
-			HV1._cur();
+			let op = CPU._ops[CPU.fetch()];
+			//CPU._wait = op.cycles;
+			op.run();
 		}
 	},
-	_backspace: function() {
-		CX--;
-		if (CX <= PROMPT_X) {
-			CX = PROMPT_X;
-		}
-		SCREEN[CY] = SCREEN[CY].setCharAt(CX, " ");
-		HPTR = 0;
+	reset: function() {
+		CPU.pc = 0;
+		CPU.status = 0;
+		CPU.accum = [0, 0];
+		CPU.callStack = [];
+		CPU._interrupted = false;
+		CPU._wait = 0;
+		CPU.start();
 	},
-	print: function(msg, replace) {
-		for (let c of msg) HV1._put(c, replace);
-	},
-	println: function(msg) {
-		HV1.print(msg + "\n");
-	},
-	prompt: function(onconfirm, password, tag) {
-		tag = tag || "";
-		onconfirm = onconfirm || null;
-		PROMPT = password ? PROMPT_PASSWORD : PROMPT_NORMAL;
-		HV1.print(tag+"> ");
-		PROMPT_X = CX;
-		PROMPT_TEXT = [];
-		PROMPT_CALLBACK = onconfirm;
-	},
-	shift: function() {
-		for (let y = 1; y < SCREEN_HEIGHT; y++) {
-			SCREEN[y - 1] = SCREEN[y];
-		}
-		SCREEN[(SCREEN_HEIGHT-1)] = " ".repeat(SCREEN_WIDTH);
-	},
-	cursor: function(x, y) {
-		CX = x;
-		CY = y;
-	},
-	_cur: function() {
-		if (CX > SCREEN_WIDTH) {
-			CX = 0;
-			HV1._nextline();
-		}
-	},
-	_nextline: function() {
-		if (CY >= SCREEN_HEIGHT-1) {
-			HV1.shift();
-			CY = SCREEN_HEIGHT-1;
-		} else {
-			CY++;
-		}
-	},
+	start: function() {
+		CPU._running = true;
+		let intv = setInterval(function() {
+			if (!CPU._running) clearInterval(intv);
+			CPU.tick();
+		}, 1);
+	}
+};
 
-	// Builin programs
-	prog_help: function(args) {
-		let cmd = args !== undefined && args.length > 0 ? args[0].toUpperCase() : "";
+CPU.start();
 
-		if (cmd.length === 0) {
-			HV1.println("┌──────────────────────────────────────┐");
-			HV1.println("│  Commands                            │");
-			HV1.println("└──────────────────────────────────────┘");
-			HV1.println(" HELP:  Shows this message");
-			HV1.println("   HELP HV1: HV1 Usage");
-			HV1.println("   HELP ASM: ASM Cheat-Sheet");
-			HV1.println(" LOAD:  Loads a program from disk");
-			HV1.println(" LIST:  Lists the program source code");
-			HV1.println(" STEP:  Steps the program");
-			HV1.println(" RUN:   Executes the program");
-			HV1.println(" MEM:   Shows the memory contents");
-			HV1.println(" RESET: Resets the system");
-			HV1.println(" CLEAR: Clears the screen");
-			HV1.println(" CRT: Toggle CRT Effect");
-			HV1.println("┌──────────────────────────────────────┐");
-			HV1.println("│  !! Press [ESC] for a hard reset !!  │");
-			HV1.println("└──────────────────────────────────────┘");
-		} else {
-			if (cmd === "HV1") {
-				HV1.println("┌──────────────────────────────────────┐");
-				HV1.println("│  HV1 Usage                           │");
-				HV1.println("└──────────────────────────────────────┘");
-				HV1.println(" How to:");
-				HV1.println(" 1. Click the Floppy Drive Button");
-				HV1.println(" 2. Type in your program");
-				HV1.println(" 3. In the console, type LOAD");
-				HV1.println(" 4. And then RUN or STEP");
-			} else if (cmd === "ASM") {
-				HV1.println("┌──────────────────────────────────────┐");
-				HV1.println("│  ASM Cheat-Sheet                     │");
-				HV1.println("└──────────────────────────────────────┘");
-				HV1.println(" rdi M: Reads user input into M");
-				HV1.println(" out V: Outputs a value V");
-				HV1.println(" lda V: Loads a value V into AC");
-				HV1.println(" stm V: Stores AC into a mem. loc. V");
-				HV1.println(" jnz V T: Jumps to T if V is not zero");
-				HV1.println(" add V: Adds a value V into AC");
-				HV1.println(" sub V: Subtracts a value V from AC");
-				HV1.println(" mod V: Modulo of AC with a value V");
-				HV1.println(" sys SSPP: Exec. sys call S with arg P");
-				HV1.println(" call M: Calls the macro M");
-				HV1.println(" ret: Returns from a macro");
-				HV1.println(" push V: Pushes a value to the stack");
-				HV1.println(" pop V: Pops val. from stack into V");
-				HV1.println(" hlt: Stops the program");
-			} else {
-				HV1.prog_help();
-			}
-		}
-	},
-
-	prog_load: function() {
-		CALL_STACK = [];
-		STACK = [];
-		PROG_OUT = [];
-		PROG = [];
-		PROG_DATA = [];
-		LABELS = {};
-		PC = 0;
-		AC = 0;
-		MEM.fill(0);
-
-		let code = DISK.value.split("");
-		let rd = new Reader(code);
-
-		let lnum = 0;
-		let pos = 0;
-
-		while (code.length > 0) {
-			let c = rd.peek();
-			if (/[a-zA-Z_\$:]/.test(c)) {
-				let inst = rd.read_while(function(c) { return /[a-zA-Z_\$:0-9]/.test(c); });
-				if (inst.endsWith(":")) {
-					LABELS[inst.replace(":", "")] = pos;
-				} else {
-					PROG.push({ val: inst, ln: lnum }); pos++;
-				}
-			} else if (/[0-9]/.test(c)) {
-				let num = rd.read_while(function(c) { return /[0-9xXa-fA-F]/.test(c); });
-				PROG.push({ val: parseInt(num), ln: lnum }); pos++;
-			} else if (c === "\n") {
-				lnum++;
-				rd.read();
-			} else if (c === " ") {
-				rd.read();
-			} else if (c === ";") {
-				while (rd.peek() !== "\n") {
-					rd.read();
-				}
-			}
-		}
-
-		for (let line of DISK.value.split("\n")) {
-			let ln = line.trim();
-			PROG_DATA.push(ln);
-		}
-		console.log(PROG);
-
-		HV1.println("Ok!");
-	},
-
-	prog_list: function() {
-		if (PROG_DATA.length === 0) {
-			HV1.println("Empty program.");
-		} else {
-			let lnum = 0;
-			for (let ln of PROG_DATA) {
-				if (ln.length === 0) { lnum++; continue; }
-				if (!ln.endsWith(":")) ln = "  " + ln;
-				let num = String("000" + lnum).slice(-3);
-				HV1.println(num + ": " + ln);
-				lnum++;
-			}
-		}
-	},
-
-	prog_process: function(cmd) {
-		let args = cmd.split(" ").map(function(v) { return v.trim(); });
-		if (CMD_HISTORY.length >= 16) {
-			CMD_HISTORY.shift();
-		}
-		if (cmd.trim().length > 0)
-			CMD_HISTORY.push(cmd.trim());
-
-		cmd = args[0].toUpperCase();
-		args.shift();
-
-		let reset = false;
-		if (cmd.length > 0) {
-			if (cmd === "HELP" || cmd === "?") {
-				HV1.prog_help(args);
-			} else if (cmd === "LOAD") {
-				HV1.prog_load(args);
-			} else if (cmd === "LIST") {
-				HV1.prog_list(args);
-			} else if (cmd === "RESET") {
-				HV1.prog_reset(args);
-				reset = true;
-			} else if (cmd === "RUN") {
-				reset = HV1.prog_run(args);
-			} else if (cmd === "STEP") {
-				reset = HV1.prog_step(true, false, args);
-				if (PC >= PROG.length) {
-					PC = 0;
-					AC = 0;
-					MEM.fill(0);
-				}
-			} else if (cmd === "CLEAR") {
-				HV1.clear(args);
-			} else if (cmd === "DIEGO" || cmd === "TWISTER") {
-				HV1.println("Hello, I'm the creator! ☻");
-			} else if (cmd === "CRT") {
-				crtEffect = !crtEffect;
-			} else if (cmd === "MEM") {
-				HV1.prog_mem();
-			} else {
-				HV1.println("Invalid command \"" + cmd + "\"");
-			}
-		}
-		if (!reset)	HV1.prompt(HV1.prog_process);
-	},
-
-	prog_reset: function(clr) {
-		clr = clr === undefined ? true : clr;
-
-		PC = 0;
-		AC = 0;
-		MEM.fill(0);
-		CALL_STACK = [];
-		STACK = [];
-		PROMPT = 0;
-		PROMPT_CALLBACK = null;
-		PROMPT_X = 0;
-
-		if (clr) {
-			PROG_OUT = [];
-			PROG = [];
-			PROG_DATA = [];
-			LABELS = {};
-
-			let memf = "Mem.: " + MEM.length + "bytes";
-			let bts = " ".repeat(16 - memf.length);
-			HV1.clear();
-			HV1.println("┌──────────────────────────────────────┐");
-			HV1.println("│  HV-1 Computer System - v1.0         │");
-			HV1.println("│  " + memf + bts + "                    │");
-			HV1.println("├──────────────────────────────────────┤");
-			HV1.println("│  Type HELP or ? for a list           │");
-			HV1.println("│  of commands.                        │");
-			HV1.println("└──────────────────────────────────────┘");
-		}
-		HV1.prog_process("");
-	},
-
-	prog_step: function(pmt, hidemem) {
-		if (PROG.length === 0) {
-			HV1.println("No program loaded.");
-			return false;
-		}
-		if (PC >= PROG.length) {
-			HV1.prog_reset(false);
-			return false;
-		}
-
-		if (!hidemem) HV1.prog_mem();
-
-		function read(addr) {
-			if (addr[0] !== "$") {
-				HV1.println("ERR(" + line() + "): Invalid address.");
-				return 0xF;
-			}
-			addr = parseInt(addr.substring(1), 16);
-			if (addr > 0xF) {
-				HV1.println("ERR(" + line() + "): Invalid address.");
-				return 0xF;
-			}
-			MIN_MEM = Math.min(MIN_MEM, addr);
-			MAX_MEM = Math.max(MAX_MEM, addr);
-			ledBlink("mem");
-			return parseInt(MEM[addr]);
-		}
-		function write(addr, v) {
-			if (addr[0] !== "$") {
-				HV1.println("ERR(" + line() + "): Invalid address.");
-				return;
-			}
-			addr = parseInt(addr.substring(1), 16);
-			if (addr > 0xF) {
-				HV1.println("ERR(" + line() + "): Invalid address.");
-				return 0xF;
-			}
-			MIN_MEM = Math.min(MIN_MEM, addr);
-			MAX_MEM = Math.max(MAX_MEM, addr);
-			ledBlink("mem");
-			MEM[addr] = v < 0 ? 0 : v % 0xFFFF;
-		}
-		function next() {
-			if (PC >= PROG.length) return null;
-			return PROG[PC++].val;
-		}
-		function line() {
-			if (PC >= PROG.length) return 0;
-			return PROG[PC].ln;
-		}
-
-		let OPS = {
-			"hlt": function() {
-				PC = PROG.length;
-			},
-			"rdi": function() { // Read a value into a memory location
-				let tgt = next();
-				HV1.prompt(function(val) {
-					if (isNaN(val)) {
-						HV1.println("ERR(rdi): Expected a number.");
-						if (pmt) HV1.prog_process("");
-						return;
-					}
-					if (isNaN(tgt) && tgt[0] === "$") {
-						write(tgt, parseInt(val));
-					} else {
-						HV1.println("ERR(" + line() + "): Expected a mem address.");
-					}
-					if (pmt) HV1.prog_process("");
-				}, false, "P");
-			},
-			"out": function() { // Print
-				let src = next();
-				if (!isNaN(src)) src = parseInt(src);
-				else if (src[0] === "$") src = read(src);
-				else src = AC;
-				PROG_OUT.push(src);
-				HV1.println(src);
-				if (pmt) HV1.prog_process("");
-			},
-			"lda": function() { // Loads a value into AC (lda $0)
-				let from = next();
-				if (isNaN(from)) {
-					if (from === "AC") HV1.println("ERR(" + line() + "): AC = AC?");
-					else {
-						AC = read(from);
-					}
-				} else {
-					AC = parseInt(from);
-				}
-				if (pmt) HV1.prog_process("");
-			},
-			"add": function() { // Adds a value into AC (add 3)
-				let from = next();
-				if (isNaN(from)) {
-					if (from === "AC") HV1.println("ERR(" + line() + "): AC = AC?");
-					else {
-						AC += read(from);
-					}
-				} else {
-					AC += parseInt(from);
-				}
-				if (pmt) HV1.prog_process("");
-			},
-			"sub": function() { // Subtracts a value from AC (sub 3)
-				let from = next();
-				if (isNaN(from)) {
-					if (from === "AC") HV1.println("ERR(" + line() + "): AC = AC?");
-					else {
-						AC -= read(from);
-					}
-				} else {
-					AC -= parseInt(from);
-				}
-				if (pmt) HV1.prog_process("");
-			},
-			"stm": function() { // Stores the value of AC into MEM (stm $3)
-				let to = next();
-				if (isNaN(to)) {
-					if (to === "AC") HV1.println("ERR(" + line() + "): AC = AC?");
-					else {
-						write(to, AC);
-					}
-				}
-				if (pmt) HV1.prog_process("");
-			},
-			// "jmp": function() { // Jumps
-			// 	let to = next();
-			// 	if (isNaN(to)) to = LABELS[to];
-			// 	else to = parseInt(to);
-			// 	PC = to;
-			// 	if (pmt) HV1.prog_process("");
-			// },
-			"jnz": function() { // Jumps if value is not zero (jnz 0 loop, jnz AC lbl, jnz $2 lbl)
-				let val = next();
-				let to = next();
-				if (isNaN(val)) {
-					if (val === "AC") val = AC;
-					else val = read(val);
-				} else {
-					val = parseInt(val);
-				}
-
-				if (isNaN(to)) to = LABELS[to];
-				else to = parseInt(to);
-
-				if (val !== 0) PC = to;
-				if (pmt) HV1.prog_process("");
-			},
-			"jez": function() { // Jumps if value is zero (jez 0 loop, jez AC lbl, jez $2 lbl)
-				let val = next();
-				let to = next();
-				if (isNaN(val)) {
-					if (val === "AC") val = AC;
-					else val = read(val);
-				} else {
-					val = parseInt(val);
-				}
-
-				if (isNaN(to)) to = LABELS[to];
-				else to = parseInt(to);
-
-				if (val === 0) PC = to;
-				if (pmt) HV1.prog_process("");
-			},
-			"mod": function() { // Calculates the modulo (rest of division) of a value between AC and X
-				let x = next(); // And stores it in AC
-				if (isNaN(x)) {
-					if (x === "AC") x = AC;
-					else x = read(x);
-				} else {
-					x = parseInt(x);
-				}
-				AC %= ~~x;
-				if (pmt) HV1.prog_process("");
-			},
-			"sys": function() { // Perform a system call
-				let call = next();
-				if (isNaN(call)) {
-					if (call == "AC") call = AC;
-					else call = read(call);
-				} else {
-					call = parseInt(call);
-				}
-
-				// Command layout
-				// 0xAABB
-				// A = command
-				// B = argument
-				let cmd = (call & 0xFF00) >> 8;
-				let arg = (call & 0x00FF);
-				switch (cmd) {
-					case 0x0: { // Clears the screen
-						HV1.clear();
-					} break;
-					case 0x1: { // Put char
-						HV1._put(String.fromCharCode(arg));
-					} break;
-					case 0x2: { // Set cursor X
-						CX = arg;
-					} break;
-					case 0x3: { // Set cursor Y
-						CY = arg;
-					} break;
-					case 0x4: { // Put char replace
-						HV1._put(String.fromCharCode(arg), true);
-					} break;
-					default: HV1.println("ERR(" + line() + "): Unknown sys call."); break;
-				}
-				if (pmt) HV1.prog_process("");
-			},
-			"call": function() { // Call a macro
-				let lbl = next();
-				if (isNaN(lbl)) lbl = LABELS[lbl];
-				else lbl = parseInt(lbl);
-				if (!lbl) {
-					HV1.println("ERR(" + line() + "): Invalid label.");
-				} else {
-					CALL_STACK.push(PC);
-					PC = lbl;
-				}
-				if (pmt) HV1.prog_process("");
-			},
-			"ret": function() { // Return from a macro
-				if (CALL_STACK.length === 0) {
-					HV1.println("ERR(" + line() + "): Invalid return.");
-				} else PC = CALL_STACK.pop();
-				if (pmt) HV1.prog_process("");
-			},
-			"push": function() { // Push a value to the stack
-				let val = next();
-				if (isNaN(val)) {
-					if (val == "AC") val = AC;
-					else val = read(val);
-				} else {
-					val = parseInt(val);
-				}
-				STACK.push(val);
-				if (pmt) HV1.prog_process("");
-			},
-			"pop": function() { // Pops a value to the stack into a memory loc or AC
-				let to = next();
-				if (isNaN(to)) {
-					if (to === "AC") AC = STACK.pop();
-					else write(to, STACK.pop());
-				} else {
-					HV1.println("ERR(" + line() + "): Invalid arg.");
-				}
-				if (pmt) HV1.prog_process("");
-			}
+let Keyboard = {
+	init: function() {
+		let c = document.getElementById("buffer");
+		c.onkeypress = function(e) {
+			Video._blink = false;
+			CPU._interrupted = false;
+			CPU.accum[CPU._interruptDest] = e.keyCode;
+			Video._clear(0);
+			Video.flip();
 		};
-
-		let op = next();
-		if (op) OPS[op]();
-		ledBlink("cpu");
-
-		return true;
-	},
-
-	prog_run: function() {
-		if (PROG.length === 0) {
-			HV1.println("No program loaded.");
-			return false;
-		}
-		PROG_OUT = [];
-		function run() {
-			if (PC >= PROG.length && PROMPT === 0) {
-				HV1.prog_reset(false);
-				return;
-			}
-			if (PROMPT === 0) {
-				HV1.prog_step(false, true);
-			}
-			setTimeout(run, 1);
-		}
-
-		run();
-		return true;
-	},
-
-	prog_mem: function(infunc) {
-		HV1.clear();
-		HV1.cursor(0, 0);
-		HV1.println("┌─────────────────────────┬────────────┐");
-		HV1.println("│           PROG          │    MEM     │");
-		HV1.println("├─────────────────────────┼────────────┤");
-		HV1.println("│                         │            │");
-		HV1.println("│                         │            │");
-		HV1.println("│                         │            │");
-		HV1.println("│                         │            │");
-		HV1.println("│                         │            │");
-		HV1.println("│                         │            │");
-		HV1.println("│                         │            │");
-		HV1.println("│                         │            │");
-		HV1.println("│                         │            │");
-		HV1.println("│                         │            │");
-		HV1.println("│                         │            │");
-		HV1.println("│                         │            │");
-		HV1.println("├─────────────────────────┤            │");
-		HV1.println("│            AC           │            │");
-		HV1.println("├─────────────────────────┤            │");
-		HV1.println("│                         │            │");
-		HV1.println("└─────────────────────────┴────────────┘");
-
-		HV1.println("OUT> " + PROG_OUT.join(",").trim());
-
-		// DRAW PROG
-		let y = 3;
-		if (PROG.length > 0) {
-			let ln = PROG[PC].ln;
-			let lni = (~~(ln / 12)) * 12;
-			let len = PROG_DATA.length > 12 ? 12 : PROG_DATA.length;
-			for (let i = lni; i < lni + len; i++) {
-				let line;
-				if (i >= PROG_DATA.length) line = "                     ";
-				else line = PROG_DATA[i].trim();
-
-				if (line.startsWith(";")) continue;
-				HV1.cursor(2, y);
-				let lns = line.substring(0, 22);
-				if (!lns.endsWith(":")) lns = "  " + lns;
-				HV1.print(lns, true);
-				if (i === ln) {
-					HV1.cursor(2, y);
-					HV1._put(">", true);
-				}
-				y++;
-			}
-		}
-
-		// DRAW MEM
-		if (MIN_MEM < MAX_MEM) {
-			y = 3;
-			for (let i = MIN_MEM; i <= MAX_MEM; i++) {
-				HV1.cursor(28, y);
-				let id = String("0x00" + i.toString(16).toUpperCase()).slice(-2);
-				HV1.print(id + ": " + String("00000" + MEM[i]).slice(-5), true);
-				y++;
-			}
-		}
-
-		// DRAW AC
-		HV1.cursor(2, 18);
-		HV1.print("        " + String("00000" + AC).slice(-5), true);
-
-		HV1.cursor(0, 22);
 	}
-});
+};
+Keyboard.init();
 
-window.onkeydown = function(e) {
-	if (document.activeElement !== SCR) return;
+function Reader(code) {
+	this.src = code.split("");
+	this.valid = function() { return this.src.length > 0; };
+	this.peek = function() { return this.src[0]; };
+	this.get = function() { return this.src.shift(); };
 
-	if (e.key === "ArrowLeft" || e.which === "ArrowRight" ||
-		e.key === "ArrowDown" ||
-		e.key === "Tab" || e.key === "ContextMenu") {
-		e.preventDefault();
-	} else if (e.key === "ArrowUp") {
-		e.preventDefault();
-		if (CMD_HISTORY.length === 0) return;
-		if (HPTR >= CMD_HISTORY.length) HPTR = 0;
-		CX = 2;
-		HV1.cursor(CX, CY);
-		HV1.print("                                      ", true);
-		CX = 2;
-		HV1.cursor(CX, CY);
-		let cmd = CMD_HISTORY[CMD_HISTORY.length - 1 - HPTR];
-		PROMPT_TEXT = cmd.split("");
-		HV1.print(cmd, true);
-		HPTR++;
-	} else if (e.key === "Escape") {
-		HV1.prog_reset(true);
-	} else {
-		if (PROMPT !== 0 && e.which !== 13) {
-			BLINK = true;
-			switch (e.which) {
-				case 8: { // Backspace
-					HV1._backspace();
-					PROMPT_TEXT.splice(CX - PROMPT_X, 1);
-				} break;
-				default: {
-					let c = e.key.trim();
-					if (c.length === 0) c = " ";
-					if (c.length === 1) {
-						PROMPT_TEXT.splice(CX - PROMPT_X, 0, c);
-						if (PROMPT !== PROMPT_PASSWORD)
-							HV1._put(c);
-						else
-							HV1._put("*");
-						HPTR = 0;
+	/**
+	 * @param {RegExp} rgx
+	 */
+	this.scan = function(rgx) {
+		let str = "";
+		while (rgx.test(this.peek()) && this.valid()) {
+			str += this.get();
+		}
+		return str;
+	};
+	this.number = function() {
+		let str = this.scan(/[\$0-9]/);
+		return [str.startsWith("$"), parseInt(str.startsWith("$") ? "0x" + str.substring(1) : str)];
+	};
+	this.identifier = function() {
+		return this.scan(/[a-zA-Z_0-9:]/);
+	};
+}
+
+let Assembler = {
+	assemble: function(code) {
+		let sc = new Reader(code);
+		let labels = {};
+		let program = [];
+		let pos = 0;
+		while (sc.valid()) {
+			if (sc.peek() === ";") {
+				while (sc.peek() !== "\n") sc.get();
+			} else if (/[a-zA-Z_]/.test(sc.peek())) { // id
+				let str = sc.identifier();
+
+				let opCode = -1;
+				for (let i = 0; i < CPU._ops.length; i++) {
+					if (CPU._ops[i].name.toLowerCase() === str.toLowerCase()) {
+						opCode = i;
+						break;
 					}
-				} break;
+				}
+
+				if (opCode !== -1) {
+					program.push(opCode);
+					pos++;
+				} else if (str.endsWith(":")) {
+					let lbl = str.substring(0, str.length-1).trim();
+					labels[lbl] = pos;
+				//} else if (str in labels) {
+					// let num = labels[str];
+					// if (sc.peek() === "+" || sc.peek() === "-") {
+					// 	let op = sc.get();
+					// 	if (op === "+") num += sc.number()[1];
+					// 	else if (op === "-") num -= sc.number()[1];
+					// 	num &= 0xFFFF;
+					// }
+					// pos += 2;
+					// program.push((num & 0xFF00) >> 8);
+					// program.push(num & 0x00FF);
+				} else {
+					pos += 2;
+					program.push(str.trim());
+					program.push(str.trim());
+					// console.error("Unknown identifier. " + str);
+				}
+			} else if (/[\$0-9]/.test(sc.peek())) { // addr
+				let num = sc.number();
+				while (sc.peek() === "+" || sc.peek() === "-") {
+					let op = sc.get();
+					if (op === "+") num[1] += sc.number()[1];
+					else if (op === "-") num[1] -= sc.number()[1];
+					num[1] &= 0xFFFF;
+				}
+
+				if (num[0]) {
+					pos += 2;
+					program.push((num[1] & 0xFF00) >> 8);
+					program.push(num[1] & 0x00FF);
+				} else {
+					pos++;
+					if (num[1] > 255) {
+						pos++;
+						program.push((num[1] & 0xFF00) >> 8);
+						program.push(num[1] & 0x00FF);
+					} else {
+						program.push(num[1]);
+					}
+				}
+			} else if (sc.peek() === "\"") {
+				let str = "";
+				sc.get();
+				while (sc.peek() !== "\"" && sc.valid()) {
+					str += sc.get();
+				}
+				sc.get();
+				for (let i = 0; i < str.length; i++) {
+					let chr = str.charAt(i);
+					let c = str.charCodeAt(i);
+					if (chr === '\\') {
+						let n = str.charAt(++i);
+						if (n === "n") program.push("\n".charCodeAt(0));
+						else if (n === "t") {
+							program.push(" ".charCodeAt(0));
+							program.push(" ".charCodeAt(0));
+						}
+					} else {
+						program.push(c);
+					}
+					pos++;
+				}
+				program.push(0);
+				pos++;
+			} else {
+				sc.get();
 			}
 		}
+
+		// Resolve labels
+		for (let i = 0; i < program.length; i++) {
+			if (typeof program[i] === "string") {
+				let num = labels[program[i]];
+				program[i] = (num & 0xFF00) >> 8;
+				program[i + 1] = (num & 0x00FF);
+			}
+		}
+
+		console.log(labels);
+		console.log(program);
+		return program;
 	}
 };
 
-window.onkeyup = function(e) {
-	if (document.activeElement !== SCR) return;
+let code = `
+start:
+	VPT ">"
+	JMP loop
 
-	if (PROMPT !== 0 && e.which === 13) {
-		HV1._put("\n");
-		updateScreen();
-		PROMPT = 0;
-		let txt = PROMPT_TEXT.join("");
-		if (CMD_HISTORY.indexOf(txt) !== -1) {
-			CMD_HISTORY.pop();
-		}
-		HPTR = 0;
-		if (PROMPT_CALLBACK !== null) {
-			PROMPT_CALLBACK(txt);
-		}
-	}
-};
+clean_cmd:
+	LDA 0
+	SOB $2000
+	SBB 1
+	CBI 0
+	JNE clean_cmd
+	RET
 
-SCR.onclick = function() { SCR.focus(); };
-SCR.focus();
-
-/// Start
-window.onload = function() {
-	DISK.value =
-`  rdi $0
-  rdi $1
-  push $1
-  push $0
-  call div
-  out $C
-  hlt
-
-mul:
-  pop $A
-  pop $B
-  lda $A
-  stm $D
-mul_body:
-  lda $C
-  add $B
-  stm $C
-  lda $D
-  sub 1
-  stm $D
-  jnz $D mul_body
-  ret
-
-div:
-  pop $A
-  pop $B
-div_body:
-  lda $A
-  sub $B
-  stm $A
-  lda $C
-  add 1
-  stm $C
-  jnz $A div_body
-  ret
-
+loop:
+	INA
+	VCA
+	SOB $2000
+	ADB 1
+	CAI 13
+	JNE loop
+	VPT "\n"
+	VPM $2001
+	VPT "\n"
+	LDA 0
+	CALL clean_cmd
+	JMP start
 `;
-// `  ;; Print even values
-//   rdi $0
-// _check:
-//   lda $0
-//   mod 2
-//   jnz AC _sub
-//   out $0
-// _sub:
-//   lda $0
-//   sub 1
-//   stm $0
-//   jnz AC _check
-//   out $0`;
-	decorator = new TextareaDecorator(DISK, parser);
-	HV1.prog_reset();
-	main();
-};
+
+let ROM = Assembler.assemble(code);
+RAM.clear();
+RAM.load(0, ROM);
+CPU.start();

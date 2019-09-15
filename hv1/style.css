@@ -4,7 +4,7 @@
 }
 
 :root {
-	--neon-text-color: #7cb4fc;
+	--neon-text-color: #7cfcd6;
 }
 
 body, html {
@@ -12,39 +12,52 @@ body, html {
 	padding: 0;
 	width: 100%;
 	height: 100%;
-	background: linear-gradient(to top, rgb(53, 48, 43), rgb(26, 24, 23));
+	background: #ccc;
 }
 
 .content {
 	display: flex;
-	flex-direction: column;
 	align-items: center;
 	justify-content: center;
 	width: 100%;
 	height: 100%;
 }
 
-#leds {
-	position: relative;
+.screen {
 	display: flex;
 	flex-direction: row;
-	left: 600px;
-	top: 223px;
-	min-height: 12px;
-	max-height: 12px;
-	min-width: 140px;
-	max-width: 140px;
-	width: 140px;
-	height: 12px;
-	z-index: 1;
+	background: #000;
+	padding: 10px;
+	border-radius: 10px;
+	box-shadow: 0 3px 12px rgba(0, 0, 0, 0.4);
+	box-sizing: border-box;
+}
+
+#debugger {
+	width: 240px;
+	height: 480px;
+	background: #fff;
+	padding: 10px;
+	border-radius: 10px;
+	box-shadow: 0 3px 12px rgba(0, 0, 0, 0.4);
+	box-sizing: border-box;
+}
+
+.dbg {
+	background: orange;
+}
+
+.codeText {
+	font-family: monospace;
+	color: #000;
+	margin: 0;
+	padding: 0;
 }
 
 /* 44x24 */
-#screen {
-	position: fixed;
-	left: 95px;
-	top: 99px;
-	color: #87bafd;
+#buffer {
+	transition: all 200ms;
+	color: var(--neon-text-color);
 	font: 15px Terminal, monospace;
 	line-height: 14px;
 	font-smooth: never;
@@ -57,7 +70,7 @@ body, html {
 
 	mix-blend-mode: screen;
 
-	white-space:pre;
+	white-space: pre;
 	-webkit-touch-callout: none; /* iOS Safari */
 	-webkit-user-select: none; /* Safari */
 	-khtml-user-select: none; /* Konqueror HTML */
@@ -67,113 +80,12 @@ body, html {
 							supported by Chrome and Opera */
 	z-index: 5;
 	outline: none;
+
+	background: #000;
 }
 
 #screen:focus {
 	outline: none;
-}
-
-#screen p {
-	padding: 0;
-	margin: 0;
-	z-index: 4;
-	outline: none;
-}
-
-.ldt .comment { color: lightgray; }
-.ldt .string { color: cyan; }
-.ldt .number { color: cyan; }
-.ldt .keyword { color: yellow; font-weight: bold; display: inline-block; margin-bottom: -1px; }
-.ldt .variable { color: cyan; }
-.ldt .label { color: lightgreen; font-weight: bold; display: inline-block; margin-bottom: -1px; }
-
-.ldt, .ldt pre, .ldt textarea {
-	color: white !important;
-	caret-color: white !important;
-}
-
-#codeArea {
-	position: fixed;
-	left: 590px;
-	top: 140px;
-	resize: none;
-	width: 300px;
-	height: 300px;
-	font-family: monospace;
-	border-radius: 2px;
-	box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
-	background: darkblue;
-	z-index: 8;
-	transition: all 300ms;
-	overflow: hidden;
-	visibility: visible;
-}
-
-.close {
-	position: absolute;
-	width: 13px;
-	height: 28px;
-	cursor: pointer;
-	right: 10px;
-	z-index: 100;
-	color: #000;
-}
-
-.close:hover {
-	color: #777;
-}
-
-.close:before {
-	content: "\00d7";
-	font-size: 24px;
-}
-
-#code:focus {
-	outline: none;
-}
-
-#floppy {
-	position: fixed;
-	left: 713px;
-	top: 190px;
-	width: 21px;
-	height: 14px;
-	cursor: pointer;
-	background: url('button.png') 0 0;
-	background-position-y: 0;
-	z-index: 7;
-}
-
-#floppy:hover {
-	background-position-y: -14px;
-}
-
-#floppy:active {
-	background-position-y: -28px;
-}
-
-.led {
-	min-width: 18px;
-	max-width: 18px;
-	width: 18px;
-	background: url('led.png') 0 0;
-	background-size: 18px 24px;
-	z-index: 2;
-}
-
-.on {
-	background-position-y: -12px;
-}
-
-.computer {
-	position: relative;
-	min-width: 800px;
-	min-height: 585px;
-	max-width: 800px;
-	max-height: 585px;
-	background: url('computer.png') no-repeat;
-	filter: drop-shadow(0 8px 6px rgba(0, 0, 0, 0.8));
-	z-index: 0;
 }
 
 ::-webkit-scrollbar {
