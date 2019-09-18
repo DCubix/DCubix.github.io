@@ -1,3 +1,24 @@
+let editor = null;
+window.onload = function() {
+	CodeMirror.defineSimpleMode("hv1", {
+		start: [
+			{regex: /\;.*/, token: "comment"},
+			{regex: /"(?:[^\\]|\\.)*?(?:"|$)/, token: "string"},
+			{regex: /\b(nop|halt|ldi|adm|ldm|stm|add|adm|sub|sbm|out|jmp|cmp|cmm|jne|jeq|jgt|jlt|jge|jle)\b/i, token: "keyword"},
+			{regex: /(.*:)\b/, token: "variable"},
+			{regex: /\$[a-f\d]+|[-+]?(?:\.\d+|\d+\.?\d*)(?:e[-+]?\d+)?/i, token: "number"}
+		],
+		comment: [
+			{regex: /.*?\*\//, token: "comment", next: "start"},
+			{regex: /.*/, token: "comment"}
+		]
+	});
+	editor = CodeMirror.fromTextArea(document.getElementById("asm"), {
+		lineNumbers: true,
+		theme: "erlang-dark"
+	});
+};
+
 String.prototype.format = function() {
 	a = this;
 	for (k in arguments) {
@@ -145,8 +166,9 @@ let Video = {
 			let x = Video._cursor[0] * cw;
 			let y = Video._cursor[1] * ch;
 			Video._clear(0);
+			const b = 0b10000000
 			if (Video._blink)
-				Video.chrData(x, y, [0xFF, 0xFF, 0xFF, 0xFF, 0xFF], 255);
+				Video.chrData(x, y, [b, b, b, b, b], 255);
 			Video.flip();
 		}, 250);
 	},
@@ -178,6 +200,7 @@ let Video = {
 		return Video.chrData(x, y, chr);
 	},
 	clear: function(v) {
+		Video.cursor(0, 0);
 		Video._charBuffer = new Array(cbh);
 		for (let i = 0; i < Video._charBuffer.length; i++) {
 			Video._charBuffer[i] = new Array(cbw);
@@ -234,6 +257,12 @@ let Video = {
 		Video._fixCursor();
 	},
 
+	unput: function() {
+		Video._cursor[0]--;
+		Video._charBuffer[Video._cursor[1]][Video._cursor[0]] = " ";
+		Video._fixCursor();
+	},
+
 	/**
 	 * @param {string} text
 	 */
@@ -251,11 +280,19 @@ let Video = {
 		Video.print(text + "\n");
 	},
 
+	cursor: function(x, y) {
+		Video._cursor[0] = x;
+		Video._cursor[1] = y;
+	},
+
 	_fixCursor: function() {
 		if (Video._cursor[0] >= cbw) {
 			Video._cursor[0] = 0;
 			Video._cursor[1]++;
+		} else if (Video._cursor[0] < 0) {
+			Video._cursor[0] = 0;
 		}
+
 		if (Video._cursor[1] >= cbh) {
 			Video._charBuffer.shift();
 
@@ -276,7 +313,7 @@ let RAM = {
 	_data: [],
 	init: function() {
 		RAM._data = new Array(1024 * 16);
-		for (let i = 0; i < RAM._data.length; i++) RAM._data[i] = 0;
+		for (let i = 0; i < RAM._data.length; i++) RAM._data[i] = ~~(Math.random() * 255);
 	},
 	read: function(addr) {
 		addr = addr || 0;
@@ -299,325 +336,160 @@ let RAM = {
 		for (let i = 0; i < program.length; i++) {
 			RAM.write(i + offset, program[i]);
 		}
+		RAM.write(program.length + offset, 0);
 	},
 	clear: function() {
 		for (let i = 0; i < RAM._data.length; i++) {
-			RAM.write(i, 0);
+			RAM.write(i, ~~(Math.random() * 255));
 		}
 	}
 };
 RAM.init();
 
-const STATUS_NONE = 0;
-const STATUS_GREATER = 1;
-const STATUS_LESS = 2;
-const STATUS_EQUALS = 5;
-
 let CPU = {
-	accum: [0, 0], // A, B
+	accum: 0,
 	callStack: [],
 	pc: 0,
-	status: 0,
+	_cmp: 0,
 	_wait: 0,
 	_interrupted: false,
 	_interruptDest: 0,
 	_running: false,
 	_ops: [
-		// NOP 0
+		// NOP
 		{ name: "nop", cycles: 1, run: function() {} },
-		// HLT 1
-		{ name: "hlt", cycles: 1, run: function() { CPU._running = false; } },
-
-		// LDA imm (loads an 8bit immediate into A: A = IMM) 2
-		{ name: "lda", cycles: 1, run: function() { let imm = CPU.fetch(); CPU.accum[0] = imm; } },
-		// LMA $mem (loads mem value into register: A = MEM[loc]) 3
-		{ name: "lma", cycles: 2, run: function() {
-			let mem0 = CPU.fetch(),
-				mem1 = CPU.fetch();
-			let mem = (mem0 & 0xFF) << 8 | (mem1 & 0xFF);
-			CPU.accum[0] = RAM.read(mem);
-		}},
-		// STA $mem (stores the A accum value into memory: MEM[loc] = A) 4
-		{ name: "sta", cycles: 2, run: function() {
-			let mem0 = CPU.fetch(),
-				mem1 = CPU.fetch();
-			let mem = (mem0 & 0xFF) << 8 | (mem1 & 0xFF);
-			RAM.write(mem, CPU.accum[0]);
+		// HALT
+		{ name: "halt", cycles: 1, run: function() { CPU._running = false; } },
+		// SYS code. (system call)
+		{ name: "sys", cycles: 2, run: function() {
+			let code = CPU.fetch();
+			if (code === 0) { // CLEAR
+				Video.clear(0);
+			}
 		}},
 
-		// LDB imm (loads an 8bit immediate into B: B = IMM) 5
-		{ name: "ldb", cycles: 1, run: function() { let imm = CPU.fetch(); CPU.accum[1] = imm; } },
-		// LMB $mem (loads mem value into register: B = MEM[loc]) 6
-		{ name: "lmb", cycles: 2, run: function() {
-			let mem0 = CPU.fetch(),
-				mem1 = CPU.fetch();
-			let mem = (mem0 & 0xFF) << 8 | (mem1 & 0xFF);
-			CPU.accum[1] = RAM.read(mem);
-		}},
-		// STB $mem (stores the B accum value into memory: MEM[loc] = B) 7
-		{ name: "stb",cycles: 2, run: function() {
-			let mem0 = CPU.fetch(),
-				mem1 = CPU.fetch();
-			let mem = (mem0 & 0xFF) << 8 | (mem1 & 0xFF);
-			RAM.write(mem, CPU.accum[1]);
+		// LDI imm (A = imm)
+		{ name: "ldi", cycles: 2, run: function() {
+			CPU.accum = CPU.fetch();
 		}},
 
-		// SOB $mem (stores A into memory offetted by B: MEM[loc + B] = A) 4
-		{ name: "sob", cycles: 2, run: function() {
-			let mem0 = CPU.fetch(),
-				mem1 = CPU.fetch();
-			let mem = (mem0 & 0xFF) << 8 | (mem1 & 0xFF);
-			RAM.write(mem + CPU.accum[1], CPU.accum[0]);
+		// LDM loc (A = mem[loc])
+		{ name: "ldm", cycles: 2, run: function() {
+			let mem = ((CPU.fetch() & 0xFF) << 8) | (CPU.fetch() & 0xFF);
+			CPU.accum = RAM.read(mem);
 		}},
 
-		// LAP (loads a value at the memory location stored in AB into A)
-		{ name: "lap", cycles: 2, run: function() {
-			let mem = (CPU.accum[0] & 0xFF) << 8 | (CPU.accum[1] & 0xFF);
-			CPU.accum[0] = RAM.read(mem);
-		}},
-		// LBP (loads a value at the memory location stored in AB into A)
-		{ name: "lbp", cycles: 2, run: function() {
-			let mem = (CPU.accum[0] & 0xFF) << 8 | (CPU.accum[1] & 0xFF);
-			CPU.accum[1] = RAM.read(mem);
+		// STM loc (mem[loc] = A)
+		{ name: "stm", cycles: 2, run: function() {
+			let mem = ((CPU.fetch() & 0xFF) << 8) | (CPU.fetch() & 0xFF);
+			RAM.write(mem, CPU.accum);
 		}},
 
-		// STP imm (stores an immediate at the memory location stored in AB)
-		{ name: "stp", cycles: 2, run: function() {
-			let imm = CPU.fetch();
-			let mem = (CPU.accum[0] & 0xFF) << 8 | (CPU.accum[1] & 0xFF);
-			RAM.write(mem, imm);
+		// ADD imm (A += imm)
+		{ name: "add", cycles: 1, run: function() {
+			CPU.accum += CPU.fetch();
+			CPU.accum &= 0xFF;
 		}},
 
-		// JMP loc 8
-		{ name: "jmp",cycles: 2, run: function() {
-			let loc0 = CPU.fetch(),
-				loc1 = CPU.fetch();
-			let loc = (loc0 & 0xFF) << 8 | (loc1 & 0xFF);
-			CPU.pc = loc;
+		// ADM loc (A += mem[loc])
+		{ name: "adm", cycles: 2, run: function() {
+			let mem = ((CPU.fetch() & 0xFF) << 8) | (CPU.fetch() & 0xFF);
+			CPU.accum += RAM.read(mem);
+			CPU.accum &= 0xFF;
 		}},
 
-		// CALL loc (calls a subroutine at loc) 9
-		{ name: "call", cycles: 2, run: function() {
-			let loc0 = CPU.fetch(),
-				loc1 = CPU.fetch();
-			let loc = (loc0 & 0xFF) << 8 | (loc1 & 0xFF);
-			CPU.callStack.push(CPU.pc);
-			CPU.pc = loc;
-		}},
-		// RET (returns from subroutine) 10
-		{ name: "ret", cycles: 1, run: function() {
-			CPU.pc = CPU.callStack.pop();
+		// SUB rD loc (rD += rS)
+		{ name: "sub", cycles: 1, run: function() {
+			CPU.accum -= CPU.fetch();
+			CPU.accum &= 0xFF;
 		}},
 
-		// CMP (compares A and B accumulators) 11
+		// SBM loc (A -= mem[loc])
+		{ name: "sbm", cycles: 2, run: function() {
+			let mem = ((CPU.fetch() & 0xFF) << 8) | (CPU.fetch() & 0xFF);
+			CPU.accum -= RAM.read(mem);
+			CPU.accum &= 0xFF;
+		}},
+
+		// OUT
+		{ name: "out", cycles: 1, run: function() {
+			Video.println(CPU.accum);
+			Video.flip();
+		}},
+
+		// JMP loc
+		{ name: "jmp", cycles: 1, run: function() {
+			let mem = ((CPU.fetch() & 0xFF) << 8) | (CPU.fetch() & 0xFF);
+			CPU.pc = mem;
+		}},
+
+		// CMP imm
 		{ name: "cmp", cycles: 1, run: function() {
-			let r0 = CPU.accum[0];
-			let r1 = CPU.accum[1];
-			if (r0 == r1) CPU.status = STATUS_EQUALS;
-			else if (r0 > r1) CPU.status = STATUS_GREATER;
-			else if (r0 < r1) CPU.status = STATUS_LESS;
-		}},
-
-		// CAI imm (compares A to immediate) 11
-		{ name: "cai", cycles: 1, run: function() {
-			let r0 = CPU.accum[0];
-			let r1 = CPU.fetch();
-			if (r0 == r1) CPU.status = STATUS_EQUALS;
-			else if (r0 > r1) CPU.status = STATUS_GREATER;
-			else if (r0 < r1) CPU.status = STATUS_LESS;
-		}},
-
-		// CBI imm (compares B to immediate) 11
-		{ name: "cbi", cycles: 1, run: function() {
-			let r0 = CPU.accum[1];
-			let r1 = CPU.fetch();
-			if (r0 == r1) CPU.status = STATUS_EQUALS;
-			else if (r0 > r1) CPU.status = STATUS_GREATER;
-			else if (r0 < r1) CPU.status = STATUS_LESS;
-		}},
-
-		// JEQ loc (jumps if equals: if STATUS == EQ: PC = loc) 12
-		{ name: "jeq", cycles: 2, run: function() {
-			let loc0 = CPU.fetch(),
-				loc1 = CPU.fetch();
-			let loc = (loc0 & 0xFF) << 8 | (loc1 & 0xFF);
-			if (CPU.status === STATUS_EQUALS) CPU.pc = loc;
-		}},
-
-		// JNE loc (jumps if not equals: if STATUS != EQ: PC = loc) 13
-		{ name: "jne", cycles: 2, run: function() {
-			let loc0 = CPU.fetch(),
-				loc1 = CPU.fetch();
-			let loc = (loc0 & 0xFF) << 8 | (loc1 & 0xFF);
-			if (CPU.status !== STATUS_EQUALS) CPU.pc = loc;
-		}},
-
-		// JLT loc (jumps if less than: if STATUS === LT: PC = loc) 14
-		{ name: "jlt", cycles: 2, run: function() {
-			let loc0 = CPU.fetch(),
-				loc1 = CPU.fetch();
-			let loc = (loc0 & 0xFF) << 8 | (loc1 & 0xFF);
-			if (CPU.status === STATUS_LESS) CPU.pc = loc;
-		}},
-
-		// JGT loc (jumps if less than: if STATUS === GT: PC = loc) 15
-		{ name: "jgt", cycles: 2, run: function() {
-			let loc0 = CPU.fetch(),
-				loc1 = CPU.fetch();
-			let loc = (loc0 & 0xFF) << 8 | (loc1 & 0xFF);
-			if (CPU.status === STATUS_GREATER) CPU.pc = loc;
-		}},
-
-		// JLE loc (jumps if less than or equals: if STATUS === LT || STATUS === EQ: PC = loc) 16
-		{ name: "jle", cycles: 2, run: function() {
-			let loc0 = CPU.fetch(),
-				loc1 = CPU.fetch();
-			let loc = (loc0 & 0xFF) << 8 | (loc1 & 0xFF);
-			if (CPU.status === STATUS_LESS || CPU.status === STATUS_EQUALS) CPU.pc = loc;
-		}},
-
-		// JGE loc (jumps if greater than or equals: if STATUS === GT || STATUS === EQ: PC = loc) 17
-		{ name: "jge", cycles: 2, run: function() {
-			let loc0 = CPU.fetch(),
-				loc1 = CPU.fetch();
-			let loc = (loc0 & 0xFF) << 8 | (loc1 & 0xFF);
-			if (CPU.status === STATUS_GREATER || CPU.status === STATUS_EQUALS) CPU.pc = loc;
-		}},
-
-		// ADA imm (adds an 8bit immediate to A: A += IMM) 18
-		{ name: "ada", cycles: 1, run: function() {
 			let imm = CPU.fetch();
-			CPU.accum[0] += imm;
-			CPU.accum[0] &= 0xFF;
-		}},
-		// BTA (adds B value to A: A += Bv) 19
-		{ name: "bta", cycles: 1, run: function() {
-			CPU.accum[0] += CPU.accum[1];
-			CPU.accum[0] &= 0xFF;
-		}},
-		// SBA imm (subtracts an 8bit immediate from A: A -= IMM) 20
-		{ name: "sba", cycles: 2, run: function() {
-			let imm = CPU.fetch();
-			CPU.accum[0] -= imm;
-			CPU.accum[0] &= 0xFF;
-		}},
-		// BFA (subtracts B from A: A -= Bv) 21
-		{ name: "bfa", cycles: 1, run: function() {
-			CPU.accum[0] -= CPU.accum[1];
-			CPU.accum[0] &= 0xFF;
+			if (CPU.accum === imm) CPU._cmp = 1;
+			else if (CPU.accum > imm) CPU._cmp = 2;
+			else if (CPU.accum < imm) CPU._cmp = 3;
 		}},
 
-		// ADB imm (adds an 8bit immediate to B: B += IMM) 22
-		{ name: "adb", cycles: 1, run: function() {
-			let imm = CPU.fetch();
-			CPU.accum[1] += imm;
-			CPU.accum[1] &= 0xFF;
-		}},
-		// ATB (adds A value to B: B += Av) 23
-		{ name: "atb", cycles: 1, run: function() {
-			CPU.accum[1] += CPU.accum[0];
-			CPU.accum[1] &= 0xFF;
-		}},
-		// SBB imm (subtracts an 8bit immediate from B: B -= IMM) 24
-		{ name: "sbb",  cycles: 2, run: function() {
-			let imm = CPU.fetch();
-			CPU.accum[1] -= imm;
-			CPU.accum[1] &= 0xFF;
-		}},
-		// AFB (subtracts A from B: B -= Av) 25
-		{ name: "afb", cycles: 1, run: function() {
-			CPU.accum[1] -= CPU.accum[0];
-			CPU.accum[1] &= 0xFF;
+		// CMM loc
+		{ name: "cmm", cycles: 1, run: function() {
+			let mem = ((CPU.fetch() & 0xFF) << 8) | (CPU.fetch() & 0xFF);
+			let imm = RAM.read(mem);
+			if (CPU.accum === imm) CPU._cmp = 1;
+			else if (CPU.accum > imm) CPU._cmp = 2;
+			else if (CPU.accum < imm) CPU._cmp = 3;
 		}},
 
-		// ADW imm (adds a 16bit immediate to AB: AB += IMM) 26
-		{ name: "adw", cycles: 2, run: function() {
-			let im0 = CPU.fetch();
-			let im1 = CPU.fetch();
-			let imm = (im0 & 0xFF) << 8 | (im1 & 0xFF);
-			let val = (CPU.accum[0] & 0xFF) << 8 | (CPU.accum[1] & 0xFF);
-			val += imm;
-			CPU.accum[0] = (val & 0xFF00) >> 8;
-			CPU.accum[1] = (val & 0x00FF);
-		}},
-		// SBW imm (subtracts a 16bit immediate from AB: AB -= IMM) 27
-		{ name: "sbw", cycles: 2, run: function() {
-			let im0 = CPU.fetch();
-			let im1 = CPU.fetch();
-			let imm = (im0 & 0xFF) << 8 | (im1 & 0xFF);
-			let val = (CPU.accum[0] & 0xFF) << 8 | (CPU.accum[1] & 0xFF);
-			val -= imm;
-			CPU.accum[0] = (val & 0xFF00) >> 8;
-			CPU.accum[1] = (val & 0x00FF);
+		// JEQ loc
+		{ name: "jeq", cycles: 1, run: function() {
+			let mem = ((CPU.fetch() & 0xFF) << 8) | (CPU.fetch() & 0xFF);
+			if (CPU._cmp === 1) CPU.pc = mem;
 		}},
 
-		// INA (request interrupt and stores resulting byte into A) 28
-		{ name: "ina", cycles: 1, run: function() {
-			CPU._interrupted = true;
-			CPU._interruptDest = 0;
-		}},
-		// INB (request interrupt and stores resulting byte into B) 29
-		{ name: "inb", cycles: 1, run: function() {
-			CPU._interrupted = true;
-			CPU._interruptDest = 1;
+		// JNE loc
+		{ name: "jne", cycles: 1, run: function() {
+			let mem = ((CPU.fetch() & 0xFF) << 8) | (CPU.fetch() & 0xFF);
+			if (CPU._cmp !== 1) CPU.pc = mem;
 		}},
 
-		// VCI imm (write a character immediate to the video chip) 30
-		{ name: "vci", cycles: 2, run: function() {
-			let chr = CPU.fetch();
-			Video.putc(String.fromCharCode(chr));
-			Video.flip();
-		}},
-		// VCA (write a character from A to the video chip) 31
-		{ name: "vca", cycles: 1, run: function() {
-			Video.putc(String.fromCharCode(CPU.accum[0]));
-			Video.flip();
-		}},
-		// VCB (write a character from B to the video chip) 32
-		{ name: "vcb", cycles: 1, run: function() {
-			Video.putc(String.fromCharCode(CPU.accum[1]));
-			Video.flip();
+		// JGT loc
+		{ name: "jgt", cycles: 1, run: function() {
+			let mem = ((CPU.fetch() & 0xFF) << 8) | (CPU.fetch() & 0xFF);
+			if (CPU._cmp === 2) CPU.pc = mem;
 		}},
 
-		// RNA (write a random byte to A) 33
-		{ name: "rna", cycles: 2, run: function() {
-			CPU.accum[0] = ~~(Math.random() * 255);
-		}},
-		// RNB (write a random byte to B) 34
-		{ name: "rnb", cycles: 2, run: function() {
-			CPU.accum[1] = ~~(Math.random() * 255);
-		}},
-		// RNW (write a random word to AB) 35
-		{ name: "rnw", cycles: 2, run: function() {
-			let val = ~~(Math.random() * 0xFFFF);
-			CPU.accum[0] = (val & 0xFF00) >> 8;
-			CPU.accum[1] = (val & 0x00FF);
+		// JLT loc
+		{ name: "jlt", cycles: 1, run: function() {
+			let mem = ((CPU.fetch() & 0xFF) << 8) | (CPU.fetch() & 0xFF);
+			if (CPU._cmp === 3) CPU.pc = mem;
 		}},
 
-		// VPT string+0. (prints a null-terminated immediate string) 36
-		{ name: "vpt", cycles: 2, run: function() {
-			let c = CPU.fetch();
-			while (c !== 0) {
-				Video.putc(String.fromCharCode(c));
-				c = CPU.fetch();
-			}
-			Video.flip();
+		// JGE loc
+		{ name: "jge", cycles: 1, run: function() {
+			let mem = ((CPU.fetch() & 0xFF) << 8) | (CPU.fetch() & 0xFF);
+			if (CPU._cmp === 2 || CPU._cmp === 1) CPU.pc = mem;
 		}},
-		// VPM $mem. (prints a null-terminated memory string) 37
-		{ name: "vpm", cycles: 2, run: function() {
-			let mem0 = CPU.fetch(),
-				mem1 = CPU.fetch();
-			let mem = (mem0 & 0xFF) << 8 | (mem1 & 0xFF);
-			let c = RAM.read(mem);
-			while (c !== 0) {
-				Video.putc(String.fromCharCode(c));
-				c = RAM.read(mem++);
-			}
-			Video.flip();
+
+		// JLE loc
+		{ name: "jle", cycles: 1, run: function() {
+			let mem = ((CPU.fetch() & 0xFF) << 8) | (CPU.fetch() & 0xFF);
+			if (CPU._cmp === 3 || CPU._cmp === 1) CPU.pc = mem;
+		}},
+
+		// CALL loc
+		{ name: "call", cycles: 2, run: function() {
+			let mem = ((CPU.fetch() & 0xFF) << 8) | (CPU.fetch() & 0xFF);
+			CPU.callStack.push(CPU.pc);
+			CPU.pc = mem;
+		}},
+
+		// RET
+		{ name: "ret", cycles: 2, run: function() {
+			CPU.pc = CPU.callStack.pop();
 		}},
 	],
 	fetch: function() {
-		if (CPU.pc >= RAM._data.length) return 0;
+		if (CPU.pc >= RAM._data.length) return 1;
 		return RAM.read(CPU.pc++);
 	},
 	tick: function() {
@@ -628,44 +500,38 @@ let CPU = {
 		if (CPU._wait > 0) {
 			CPU._wait--;
 		} else {
-			let op = CPU._ops[CPU.fetch()];
-			//CPU._wait = op.cycles;
-			op.run();
+			let code = CPU.fetch();
+			let op = CPU._ops[code];
+
+			if (op === undefined || op === null) {
+				CPU._running = false;
+			} else {
+				console.log(op.name);
+				CPU._wait = op.cycles;
+				let c = op.run();
+				if (c) CPU._wait += c;
+			}
 		}
 	},
 	reset: function() {
 		CPU.pc = 0;
-		CPU.status = 0;
-		CPU.accum = [0, 0];
+		CPU.accum = 0;
 		CPU.callStack = [];
 		CPU._interrupted = false;
 		CPU._wait = 0;
-		CPU.start();
+		CPU._running = false;
 	},
 	start: function() {
 		CPU._running = true;
 		let intv = setInterval(function() {
-			if (!CPU._running) clearInterval(intv);
+			if (!CPU._running) {
+				clearInterval(intv);
+				return;
+			}
 			CPU.tick();
-		}, 1);
+		}, 2);
 	}
 };
-
-CPU.start();
-
-let Keyboard = {
-	init: function() {
-		let c = document.getElementById("buffer");
-		c.onkeypress = function(e) {
-			Video._blink = false;
-			CPU._interrupted = false;
-			CPU.accum[CPU._interruptDest] = e.keyCode;
-			Video._clear(0);
-			Video.flip();
-		};
-	}
-};
-Keyboard.init();
 
 function Reader(code) {
 	this.src = code.split("");
@@ -684,8 +550,9 @@ function Reader(code) {
 		return str;
 	};
 	this.number = function() {
-		let str = this.scan(/[\$0-9]/);
-		return [str.startsWith("$"), parseInt(str.startsWith("$") ? "0x" + str.substring(1) : str)];
+		let str = this.scan(/[\$0-9a-fA-F]/);
+		let val = parseInt(str.startsWith("$") ? "0x" + str.substring(1) : str);
+		return [str.startsWith("$"), val];
 	};
 	this.identifier = function() {
 		return this.scan(/[a-zA-Z_0-9:]/);
@@ -718,22 +585,10 @@ let Assembler = {
 				} else if (str.endsWith(":")) {
 					let lbl = str.substring(0, str.length-1).trim();
 					labels[lbl] = pos;
-				//} else if (str in labels) {
-					// let num = labels[str];
-					// if (sc.peek() === "+" || sc.peek() === "-") {
-					// 	let op = sc.get();
-					// 	if (op === "+") num += sc.number()[1];
-					// 	else if (op === "-") num -= sc.number()[1];
-					// 	num &= 0xFFFF;
-					// }
-					// pos += 2;
-					// program.push((num & 0xFF00) >> 8);
-					// program.push(num & 0x00FF);
 				} else {
 					pos += 2;
 					program.push(str.trim());
 					program.push(str.trim());
-					// console.error("Unknown identifier. " + str);
 				}
 			} else if (/[\$0-9]/.test(sc.peek())) { // addr
 				let num = sc.number();
@@ -796,41 +651,45 @@ let Assembler = {
 			}
 		}
 
-		console.log(labels);
+		//console.log(labels);
 		console.log(program);
 		return program;
 	}
 };
 
-let code = `
-start:
-	VPT ">"
-	JMP loop
+let Keyboard = {
+	init: function() {
+		let c = document.getElementById("buffer");
+		c.onkeypress = function(e) {
+			Video._blink = false;
+			CPU._interrupted = false;
+			RAM.write(CPU._interruptDest, e.keyCode);
+			Video._clear(0);
+			Video.flip();
+		};
+		c.onkeydown = function(e) {
+			if (e.key === "F2") {
+				load();
+			} else {
+				if (e.keyCode != 8) return;
 
-clean_cmd:
-	LDA 0
-	SOB $2000
-	SBB 1
-	CBI 0
-	JNE clean_cmd
-	RET
+				Video._blink = false;
+				CPU._interrupted = false;
+				RAM.write(CPU._interruptDest, e.keyCode);
+				Video._clear(0);
+				Video.flip();
+			}
+		};
+	}
+};
+Keyboard.init();
 
-loop:
-	INA
-	VCA
-	SOB $2000
-	ADB 1
-	CAI 13
-	JNE loop
-	VPT "\n"
-	VPM $2001
-	VPT "\n"
-	LDA 0
-	CALL clean_cmd
-	JMP start
-`;
-
-let ROM = Assembler.assemble(code);
-RAM.clear();
-RAM.load(0, ROM);
-CPU.start();
+function load() {
+	let code = editor.getValue();
+	let asm = Assembler.assemble(code);
+	Video.clear(0);
+	RAM.clear();
+	CPU.reset();
+	RAM.load(0, asm);
+	CPU.start();
+}

@@ -3,6 +3,28 @@
 	src: url('font.ttf');
 }
 
+#asm {
+	caret-color: white !important;
+	color: white;
+	resize: none;
+	font-family: monospace;
+	border-radius: 2px;
+	box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+	background: black;
+	overflow: scroll;
+	visibility: visible;
+	padding: 10px;
+	border: 1px white solid;
+	box-sizing: border-box;
+}
+
+.CodeMirror {
+	width: 320px !important;
+	height: 100% !important;
+	border: 1px white solid;
+	box-sizing: border-box;
+}
+
 :root {
 	--neon-text-color: #7cfcd6;
 }
@@ -31,6 +53,17 @@ body, html {
 	border-radius: 10px;
 	box-shadow: 0 3px 12px rgba(0, 0, 0, 0.4);
 	box-sizing: border-box;
+}
+
+.screen-v {
+	margin-left: 10px !important;
+	display: flex;
+	flex-direction: column;
+	box-sizing: border-box;
+}
+
+.buttons {
+	padding: 10px;
 }
 
 #debugger {
@@ -82,6 +115,8 @@ body, html {
 	outline: none;
 
 	background: #000;
+
+	border: 1px white solid;
 }
 
 #screen:focus {

@@ -4,13 +4,30 @@
 		<meta charset="utf-8">
 		<title>HV-1</title>
 		<link rel="stylesheet" href="./style.css" />
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.36.0/codemirror.min.css" />
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.36.0/theme/erlang-dark.css" />
 	</head>
 	<body>
 		<div class="content">
 			<div class="screen">
 				<canvas id="buffer" tabindex="1">Error!</canvas>
+				<div class="screen-v">
+					<textarea id="asm">;; Write some code here :)
+_start:
+	ADD 1
+	CMP 10
+	OUT
+	JLT _start
+</textarea>
+					<div class="buttons">
+						<button onclick="load()">RUN</button>
+					</div>
+				</div>
 			</div>
+			<noscript>Please enable JavaScript to allow syntax highlighting.</noscript>
 		</div>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.36.0/codemirror.min.js" type="text/javascript"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.36.0/addon/mode/simple.min.js" type="text/javascript"></script>
 		<script type="text/javascript" src="app.js"></script>
 	</body>
 </html>
