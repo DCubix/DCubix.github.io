@@ -12,15 +12,21 @@
 			<div class="screen">
 				<canvas id="buffer" tabindex="1">Error!</canvas>
 				<div class="screen-v">
-					<textarea id="asm">;; Write some code here :)
-_start:
-	ADD 1
-	CMP 10
-	OUT
-	JLT _start
-</textarea>
+					<textarea id="asm">loop:
+	RND
+	CMP 127
+	JLT _slash
+	LDI 92
+	OUC
+	JMP loop
+
+_slash:
+	LDI 47
+	OUC
+	JMP loop</textarea>
 					<div class="buttons">
 						<button onclick="load()">RUN</button>
+						<span id="accum" style="color: white">A = 0</span>
 					</div>
 				</div>
 			</div>

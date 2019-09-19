@@ -4,7 +4,7 @@ window.onload = function() {
 		start: [
 			{regex: /\;.*/, token: "comment"},
 			{regex: /"(?:[^\\]|\\.)*?(?:"|$)/, token: "string"},
-			{regex: /\b(nop|halt|ldi|adm|ldm|stm|add|adm|sub|sbm|out|jmp|cmp|cmm|jne|jeq|jgt|jlt|jge|jle)\b/i, token: "keyword"},
+			{regex: /\b(rnd|and|anm|or|orm|xor|xrm|not|rsh|lsh|int|nop|halt|ldi|adm|ldm|stm|add|adm|sub|sbm|out|oux|ouc|jmp|cmp|cmm|jne|jeq|jgt|jlt|jge|jle)\b/i, token: "keyword"},
 			{regex: /(.*:)\b/, token: "variable"},
 			{regex: /\$[a-f\d]+|[-+]?(?:\.\d+|\d+\.?\d*)(?:e[-+]?\d+)?/i, token: "number"}
 		],
@@ -104,7 +104,7 @@ let Video = {
 		[0x0f,0x08,0x38,0x0f,0x00], // Y
 		[0x31,0x29,0x25,0x23,0x00], // Z
 		[0x3f,0x21,0x00,0x00,0x00], // [
-		[0x20,0x10,0x08,0x04,0x02], // "\"
+		[0x02,0x04,0x08,0x10,0x20], // "\"
 		[0x21,0x3f,0x00,0x00,0x00], // ]
 		[0x02,0x01,0x01,0x02,0x00], // ^
 		[0x20,0x20,0x00,0x00,0x00], // _
@@ -398,7 +398,7 @@ let CPU = {
 			CPU.accum &= 0xFF;
 		}},
 
-		// SUB rD loc (rD += rS)
+		// SUB imm (A += imm)
 		{ name: "sub", cycles: 1, run: function() {
 			CPU.accum -= CPU.fetch();
 			CPU.accum &= 0xFF;
@@ -411,14 +411,83 @@ let CPU = {
 			CPU.accum &= 0xFF;
 		}},
 
-		// OUT
+		// AND imm (A &= rS)
+		{ name: "and", cycles: 1, run: function() {
+			CPU.accum &= CPU.fetch();
+			CPU.accum &= 0xFF;
+		}},
+
+		// ANM loc (A &= mem[loc])
+		{ name: "anm", cycles: 2, run: function() {
+			let mem = ((CPU.fetch() & 0xFF) << 8) | (CPU.fetch() & 0xFF);
+			CPU.accum &= RAM.read(mem);
+			CPU.accum &= 0xFF;
+		}},
+
+		// OR imm (A |= rS)
+		{ name: "or", cycles: 1, run: function() {
+			CPU.accum |= CPU.fetch();
+			CPU.accum &= 0xFF;
+		}},
+
+		// ORM loc (A |= mem[loc])
+		{ name: "orm", cycles: 2, run: function() {
+			let mem = ((CPU.fetch() & 0xFF) << 8) | (CPU.fetch() & 0xFF);
+			CPU.accum |= RAM.read(mem);
+			CPU.accum &= 0xFF;
+		}},
+
+		// XOR imm (A ^= rS)
+		{ name: "xor", cycles: 1, run: function() {
+			CPU.accum ^= CPU.fetch();
+			CPU.accum &= 0xFF;
+		}},
+
+		// XRM loc (A ^= mem[loc])
+		{ name: "xrm", cycles: 2, run: function() {
+			let mem = ((CPU.fetch() & 0xFF) << 8) | (CPU.fetch() & 0xFF);
+			CPU.accum ^= RAM.read(mem);
+			CPU.accum &= 0xFF;
+		}},
+
+		// NOT
+		{ name: "not", cycles: 1, run: function() {
+			CPU.accum = ~CPU.accum;
+			CPU.accum &= 0xFF;
+		}},
+
+		// LSH
+		{ name: "lsh", cycles: 1, run: function() {
+			CPU.accum <<= 1;
+			CPU.accum &= 0xFF;
+		}},
+
+		// RSH
+		{ name: "rsh", cycles: 1, run: function() {
+			CPU.accum >>= 1;
+			CPU.accum &= 0xFF;
+		}},
+
+		// OUT (prints a number)
 		{ name: "out", cycles: 1, run: function() {
 			Video.println(CPU.accum);
 			Video.flip();
 		}},
 
+		// OUX (prints a hex number)
+		{ name: "oux", cycles: 1, run: function() {
+			Video.println("$" + CPU.accum.toString(16).toUpperCase());
+			Video.flip();
+		}},
+
+		// OUC (prints a char)
+		{ name: "ouc", cycles: 1, run: function() {
+			Video.putc(String.fromCharCode(CPU.accum & 0x7F));
+			Video.flip();
+		}},
+
 		// JMP loc
-		{ name: "jmp", cycles: 1, run: function() {
+		{ name: "jmp", cycles: 2, run: function() {
 			let mem = ((CPU.fetch() & 0xFF) << 8) | (CPU.fetch() & 0xFF);
 			CPU.pc = mem;
 		}},
@@ -432,7 +501,7 @@ let CPU = {
 		}},
 
 		// CMM loc
-		{ name: "cmm", cycles: 1, run: function() {
+		{ name: "cmm", cycles: 2, run: function() {
 			let mem = ((CPU.fetch() & 0xFF) << 8) | (CPU.fetch() & 0xFF);
 			let imm = RAM.read(mem);
 			if (CPU.accum === imm) CPU._cmp = 1;
@@ -484,8 +553,20 @@ let CPU = {
 		}},
 
 		// RET
-		{ name: "ret", cycles: 2, run: function() {
+		{ name: "ret", cycles: 1, run: function() {
 			CPU.pc = CPU.callStack.pop();
+		}},
+
+		// INT destLoc (keyboard interrupt)
+		{ name: "int", cycles: 3, run: function() {
+			let dest = ((CPU.fetch() & 0xFF) << 8) | (CPU.fetch() & 0xFF);
+			CPU._interrupted = true;
+			CPU._interruptDest = dest;
+		}},
+
+		// RND (random byte)
+		{ name: "rnd", cycles: 4, run: function() {
+			CPU.accum = ~~(Math.random() * 0xFF);
 		}},
 	],
 	fetch: function() {
@@ -506,7 +587,7 @@ let CPU = {
 			if (op === undefined || op === null) {
 				CPU._running = false;
 			} else {
-				console.log(op.name);
+				//console.log(op.name);
 				CPU._wait = op.cycles;
 				let c = op.run();
 				if (c) CPU._wait += c;
@@ -529,6 +610,7 @@ let CPU = {
 				return;
 			}
 			CPU.tick();
+			document.getElementById("accum").innerText = "A = " + CPU.accum;
 		}, 2);
 	}
 };
@@ -552,7 +634,7 @@ function Reader(code) {
 	this.number = function() {
 		let str = this.scan(/[\$0-9a-fA-F]/);
 		let val = parseInt(str.startsWith("$") ? "0x" + str.substring(1) : str);
-		return [str.startsWith("$"), val];
+		return val;
 	};
 	this.identifier = function() {
 		return this.scan(/[a-zA-Z_0-9:]/);
@@ -594,24 +676,18 @@ let Assembler = {
 				let num = sc.number();
 				while (sc.peek() === "+" || sc.peek() === "-") {
 					let op = sc.get();
-					if (op === "+") num[1] += sc.number()[1];
-					else if (op === "-") num[1] -= sc.number()[1];
-					num[1] &= 0xFFFF;
+					if (op === "+") num += sc.number();
+					else if (op === "-") num -= sc.number();
+					num &= 0xFFFF;
 				}
 
-				if (num[0]) {
-					pos += 2;
-					program.push((num[1] & 0xFF00) >> 8);
-					program.push(num[1] & 0x00FF);
-				} else {
+				pos++;
+				if (num > 255) {
 					pos++;
-					if (num[1] > 255) {
-						pos++;
-						program.push((num[1] & 0xFF00) >> 8);
-						program.push(num[1] & 0x00FF);
-					} else {
-						program.push(num[1]);
-					}
+					program.push((num & 0xFF00) >> 8);
+					program.push(num & 0x00FF);
+				} else {
+					program.push(num);
 				}
 			} else if (sc.peek() === "\"") {
 				let str = "";
