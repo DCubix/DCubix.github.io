@@ -10,7 +10,7 @@
 		<div class="hbox" style="width: 100%; height: 100%">
 			<div class="vbox" style="width: 100%; height: 100%">
 				<div class="hbox panel">
-					<!-- <span style="padding: 4px; background: #777; color: white; width: 100px; text-align: right">Time-line</span> -->
+					<!-- <span style="">Time-line</span> -->
 					<span>FPS</span><input id="fps" type="number" min="1" max="60" value="24"/>
 					<span>Frame Count</span><input id="frames" type="number" min="1" max="5000" value="100"/>
 					<button onclick="playStop(this)"><i class="fa fa-play"></i></button>
@@ -18,7 +18,8 @@
 					<span>Add Figure</span><select id="library"></select>
 					<button onclick="addFigure()"><i class="fa fa-plus"></i></button>
 				</div>
-				<div class="panel" style="overflow-x: auto; overflow-y: hidden">
+				<div class="panel hbox" style="overflow-x: auto; overflow-y: hidden">
+					<span id="sel" style="padding: 4px; background: #777; color: white; width: 100px; text-align: right"></span>
 					<canvas id="timeline" height="32"></canvas>
 				</div>
 				<div class="panel workspace">

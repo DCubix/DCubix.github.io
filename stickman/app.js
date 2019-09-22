@@ -602,6 +602,8 @@ canvas.onmousedown = function(e) {
 	for (let fig of scene.figures) {
 		let ob = fig.test(mouse.x, mouse.y);
 		if (ob !== null) {
+			document.getElementById("sel").innerText = ob.name;
+
 			TL.setKeyFrames(ob.keyframes);
 
 			if (selectedStick !== null) selectedStick.selected = false;
