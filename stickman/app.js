@@ -97,9 +97,10 @@ function Reader(code) {
 	};
 }
 
-function Keyframe(pos, rot, frame) {
+function Keyframe(pos, rot, scl, frame) {
 	this.targetPos = pos;
 	this.targetRot = rot;
+	this.targetScale = scl;
 	this.frame = frame;
 }
 
@@ -114,6 +115,7 @@ var ID = 0;
 function Figure(rot, length, x, y, circle, color, thickness, movable) {
 	this.pos = new Vec2(x || 0, y || 0);
 	this.rot = rot || 0;
+	this.scale = 1.0;
 	this.length = length || 0;
 	this.color = color || "black";
 	this.thickness = thickness || 10;
@@ -138,6 +140,7 @@ function Figure(rot, length, x, y, circle, color, thickness, movable) {
 		ctx.save();
 		ctx.rotate(rot);
 		ctx.translate(pos.x, pos.y);
+		ctx.scale(this.scale, this.scale);
 
 		if (this.length > 0 && this.thickness > 0) {
 			let col = color || this.color;
@@ -168,22 +171,25 @@ function Figure(rot, length, x, y, circle, color, thickness, movable) {
 		ctx.restore();
 	};
 
-	this.drawGhost = function(ctx, frame) {
+	this.drawGhost = function(ctx, frame, looping) {
 		let pos = new Vec2(this.pos);
 		let rot = this.rot;
+		let scl = this.scale;
 		let kf = this.previousKeyframe(frame);
 
 		if (kf !== null) {
-			let xform = this.getAnimatedTransform(kf.frame);
+			let xform = this.getAnimatedTransform(kf.frame, looping);
 			if (xform !== null) {
 				pos = xform[0];
 				rot = xform[1];
+				scl = xform[2];
 			}
 		}
 
 		ctx.save();
 		ctx.rotate(rot);
 		ctx.translate(pos.x, pos.y);
+		ctx.scale(scl, scl);
 
 		if (this.length > 0 && this.thickness > 0) {
 			let col = "#bbb";
@@ -217,11 +223,12 @@ function Figure(rot, length, x, y, circle, color, thickness, movable) {
 		ctx.save();
 		ctx.rotate(this.rot);
 		ctx.translate(this.pos.x + this.length, this.pos.y);
+		ctx.scale(this.scale, this.scale);
 
 		if (this.movable) {
 			ctx.fillStyle = this.parent !== null ? (this.ik > 0 ? "#0f0" : "red") : "orange";
 			ctx.beginPath();
-			ctx.arc(0, 0, 4, 0, Math.PI * 2);
+			ctx.arc(0, 0, 4 / this.globalScale(), 0, Math.PI * 2);
 			ctx.fill();
 		}
 
@@ -263,12 +270,18 @@ function Figure(rot, length, x, y, circle, color, thickness, movable) {
 		return this.parent.globalRot() + this.rot;
 	};
 
+	this.globalScale = function() {
+		if (this.parent === null) return this.scale;
+		return this.parent.globalScale() * this.scale;
+	};
+
 	this.globalPos = function() {
 		if (this.parent === null) return new Vec2(this.pos);
 		let pos = this.parent.globalPos();
 		let rot = this.globalRot();
-		pos.x += Math.cos(rot) * this.length;
-		pos.y += Math.sin(rot) * this.length;
+		let scl = this.globalScale();
+		pos.x += Math.cos(rot) * this.length * scl;
+		pos.y += Math.sin(rot) * this.length * scl;
 		return pos;
 	};
 
@@ -290,7 +303,7 @@ function Figure(rot, length, x, y, circle, color, thickness, movable) {
 		return figs;
 	};
 
-	this.addKeyframe = function(pos, rot, frame) {
+	this.addKeyframe = function(pos, rot, scl, frame) {
 		let foundFrame = null;
 		let frameID = 0;
 		for (let k of this.keyframes) {
@@ -302,45 +315,59 @@ function Figure(rot, length, x, y, circle, color, thickness, movable) {
 		}
 
 		if (foundFrame === null) {
-			this.keyframes.push(new Keyframe(pos, rot, frame));
+			this.keyframes.push(new Keyframe(pos, rot, scl, frame));
 		} else {
 			if (frame === foundFrame.frame) {
 				this.keyframes[frameID].targetPos = pos;
 				this.keyframes[frameID].targetRot = rot;
+				this.keyframes[frameID].targetScale = scl;
 				this.keyframes[frameID].frame = frame;
 			} else {
 				let id = frameID <= 0 ? 0 : frameID;
-				this.keyframes.insert(id, new Keyframe(pos, rot, frame));
+				this.keyframes.insert(id, new Keyframe(pos, rot, scl, frame));
 			}
 		}
 	};
 
-	this.getAnimatedTransform = function(frame) {
+	this.getAnimatedTransform = function(frame, looping) {
 		if (this.keyframes.length === 0) {
 			return null;
 		} else if (this.keyframes.length === 1) {
-			return [new Vec2(this.keyframes[0].targetPos), this.keyframes[0].targetRot];
+			return [new Vec2(this.keyframes[0].targetPos), this.keyframes[0].targetRot, this.keyframes[0].targetScale];
 		}
-		for (let i = 0; i < this.keyframes.length - 1; i++) {
-			let a = this.keyframes[i + 0];
-			let b = this.keyframes[i + 1];
+		let keyframes = this.keyframes;
+		if (looping) {
+			let f = this.keyframes[0];
+			let kf = new Keyframe(new Vec2(f.targetPos), f.targetRot, f.targetScale, TL.frames);
+			keyframes = [...this.keyframes, kf];
+		}
+		for (let i = 0; i < keyframes.length - 1; i++) {
+			let a = keyframes[i + 0];
+			let b = keyframes[i + 1];
+			let ta = a.frame, tb = b.frame, t = frame;
+			let time = Math.abs((t - ta) / (tb - ta));
 			if (frame >= a.frame && frame <= b.frame) {
-				let ta = a.frame, tb = b.frame, t = frame;
-				let time = (t - ta) / (tb - ta);
-				return [a.targetPos.lerp(b.targetPos, time), Math.angleLerp(a.targetRot, b.targetRot, time)];
+				return [
+					a.targetPos.lerp(b.targetPos, time),
+					Math.angleLerp(a.targetRot, b.targetRot, time),
+					Math.lerp(a.targetScale, b.targetScale, time)
+				];
 			}
 		}
-		return null;
+
+		let last = this.keyframes[this.keyframes.length - 1];
+		return [new Vec2(last.targetPos), last.targetRot, last.targetScale];
 	};
 
-	this.animate = function(frame) {
-		let xform = this.getAnimatedTransform(frame);
+	this.animate = function(frame, looping) {
+		let xform = this.getAnimatedTransform(frame, looping);
 		if (xform !== null) {
 			this.pos = xform[0];
 			this.rot = xform[1];
+			this.scale = xform[2];
 		}
 		for (let c of this.children) {
-			c.animate(frame);
+			c.animate(frame, looping);
 		}
 	};
 
@@ -418,7 +445,7 @@ function Scene(width, height) {
 							else if (prop === "W")		stk.thickness = sc.number();
 							else if (prop === "MOV")	stk.movable = sc.identifier().toUpperCase() === "TRUE";
 							else if (prop === "IK")		stk.ik = sc.number();
-							else if (prop === "NAME")	stk.name = sc.identifier();
+							else if (prop === "NAME")	stk.name = sc.identifier().trim();
 							sc.trimSpaces();
 						}
 						if (sc.peek() === ",") {
@@ -455,9 +482,21 @@ function Scene(width, height) {
 				sc.get();
 			}
 		}
+		if (root.length === 0) root.push(stk);
 		root[0].parent = null;
 		fixFigure(root[0]);
 		this.addFigure(root[0]);
+	};
+
+	this.deleteFigure = function(id) {
+		let del = null;
+		for (let i = 0; i < this.figures; i++) {
+			if (this.figures[i].id === id) {
+				del = i;
+				break;
+			}
+		}
+		this.figures.splice(del, 1);
 	};
 
 	this.draw = function(ctx, esel) {
@@ -466,15 +505,15 @@ function Scene(width, height) {
 		}
 	};
 
-	this.drawGhost = function(ctx, frame) {
+	this.drawGhost = function(ctx, frame, looping) {
 		for (let fig of this.figures) {
-			fig.drawGhost(ctx, frame);
+			fig.drawGhost(ctx, frame, looping);
 		}
 	};
 
-	this.animate = function(frame) {
+	this.animate = function(frame, looping) {
 		for (let fig of this.figures) {
-			fig.animate(frame);
+			fig.animate(frame, looping);
 		}
 	};
 }
@@ -576,7 +615,7 @@ function redraw() {
 	ctx.fillStyle = "white";
 	ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-	if (!TL.playing) scene.drawGhost(ctx, TL.current);
+	if (!TL.playing) scene.drawGhost(ctx, TL.current, document.getElementById("seamless").checked);
 	scene.draw(ctx);
 
 	if (selectedFig !== null && !TL.playing) {
@@ -602,9 +641,9 @@ canvas.onmousedown = function(e) {
 	for (let fig of scene.figures) {
 		let ob = fig.test(mouse.x, mouse.y);
 		if (ob !== null) {
-			document.getElementById("sel").innerText = ob.name;
-
-			TL.setKeyFrames(ob.keyframes);
+			let ch = fig.childrenRecursive();
+			TL._labels = ch.map(function(c) { return c.name; });
+			TL.setKeyFrames(ch.map(function(c) { return c.keyframes; }));
 
 			if (selectedStick !== null) selectedStick.selected = false;
 			selectedStick = ob;
@@ -674,7 +713,24 @@ window.onresize = function() {
 };
 
 let figureLibrary = {
-	"Stick-Man": `S(X: 5, Y: 5, NAME: root) {
+	"Stick-Man Simple": `S(X: 5, Y: 5, NAME: root) {
+		S(ROT: -90, LEN: 40, NAME: torso) {
+			S(ROT: 130, LEN: 25, NAME: l_arm) {
+				S(ROT: 20, LEN: 25, NAME: l_farm)
+			}
+			S(ROT: -130, LEN: 25, NAME: r_arm) {
+				S(ROT: -20, LEN: 25, NAME: r_farm)
+			}
+			S(LEN: 25, CIR: TRUE, NAME: head)
+		}
+		S(ROT: 130, LEN: 25, NAME: l_leg) {
+			S(ROT: -20, LEN: 25, NAME: l_fleg)
+		}
+		S(ROT: 45, LEN: 25, NAME: r_leg) {
+			S(ROT: 20, LEN: 25, NAME: r_fleg)
+		}
+	}`,
+	"Stick-Man IK": `S(X: 5, Y: 5, NAME: root) {
 		S(ROT: -90, LEN: 40, NAME: torso) {
 			S(ROT: 130, LEN: 25, NAME: l_arm) {
 				S(ROT: 20, LEN: 25, IK: 2, NAME: l_farm)
@@ -691,6 +747,9 @@ let figureLibrary = {
 			S(ROT: 20, LEN: 25, IK: 2, NAME: r_fleg)
 		}
 	}`,
+	"Stick": `S(X: 5, Y: 5, NAME: root) {
+		S(LEN: 30, NAME: stick)
+	}`,
 	"Custom": '_'
 };
 
@@ -699,36 +758,59 @@ redraw();
 function newKeyframe() {
 	if (TL.playing) return;
 	if (selectedStick.ik === 0) {
-		selectedStick.addKeyframe(new Vec2(selectedStick.pos), selectedStick.rot, TL.current);
+		selectedStick.addKeyframe(new Vec2(selectedStick.pos), selectedStick.rot, selectedStick.scale, TL.current);
 	} else {
 		for (let ob of _getIKFigs(selectedStick)) {
-			ob.addKeyframe(new Vec2(ob.pos), ob.rot, TL.current);
+			ob.addKeyframe(new Vec2(ob.pos), ob.rot, ob.scale, TL.current);
 		}
 	}
 	TL._redraw();
+	redraw();
+}
+
+function setKeyframeAll() {
+	for (let ob of scene.figures) {
+		for (let fig of ob.childrenRecursive()) {
+			fig.addKeyframe(new Vec2(fig.pos), fig.rot, fig.scale, TL.current);
+		}
+	}
+	TL._redraw();
+	redraw();
 }
 
 function playStop(btn) {
 	if (!TL.playing) {
-		btn.innerHTML = `<i class="fa fa-stop"></i>`;
+		btn.innerHTML = `<i class="fa fa-stop"></i> Stop`;
 		TL.play(parseInt(document.getElementById("fps").value));
 	} else {
-		btn.innerHTML = `<i class="fa fa-play"></i>`;
+		btn.innerHTML = `<i class="fa fa-play"></i> Play`;
 		TL.stop();
 	}
-	scene.animate(TL.current);
+	scene.animate(TL.current, document.getElementById("seamless").checked);
 	redraw();
+}
+
+function deleteFig() {
+	if (!TL.playing) {
+		if (selectedStick !== null) selectedStick.selected = false;
+		scene.deleteFigure(selectedFig.id);
+		selectedStick = null;
+		selectedFig = null;
+		TL.setKeyFrames(null);
+		redraw();
+	}
 }
 
 redraw();
 TL.init();
 TL.ontick(function(f) {
-	scene.animate(f);
+	scene.animate(f, document.getElementById("seamless").checked);
 	redraw();
 });
 
 let library = document.getElementById("library");
 let frameCount = document.getElementById("frames");
+let size = document.getElementById("size");
 TL.setFrames(100);
 
 for (let k in figureLibrary) {
@@ -749,4 +831,19 @@ function addFigure() {
 
 frameCount.onchange = function(ev) {
 	TL.setFrames(parseInt(frameCount.value));
+};
+
+size.onchange = function(ev) {
+	if (selectedFig !== null) {
+		selectedFig.scale = parseInt(size.value) / 100.0;
+		redraw();
+	}
+};
+
+window.onkeydown = function(ev) {
+	if (ev.key === "ArrowRight") {
+		TL.setFrame(TL.current + 1);
+	} else if (ev.key === "ArrowLeft") {
+		TL.setFrame(TL.current - 1);
+	}
 };

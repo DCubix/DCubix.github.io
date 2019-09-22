@@ -1,5 +1,9 @@
+* {
+	font-family: monospace;
+}
+
 body {
-	background: darkgray;
+	background: black;
 }
 
 html, body {
@@ -8,7 +12,6 @@ html, body {
 	margin: 0;
 	padding: 0;
 	box-sizing: border-box;
-	font-family: monospace;
 }
 
 .vbox {
@@ -71,7 +74,7 @@ html, body {
 .panel {
 	border: 1px inset var(--gui-shadow);
 	background: var(--gui);
-	padding: 2px;
+	padding: 4px;
 	box-sizing: border-box;
 }
 
@@ -83,7 +86,7 @@ html, body {
 .panel1 {
 	border: 1px outset var(--gui-shadow);
 	background: var(--gui);
-	padding: 2px;
+	padding: 4px;
 	box-sizing: border-box;
 }
 
@@ -94,6 +97,7 @@ button {
 	box-sizing: border-box;
 	outline: none;
 	vertical-align: middle;
+	width: 100%;
 }
 
 button:active {
@@ -106,6 +110,7 @@ input, select {
 	border: 1px inset var(--gui-shadow);
 	padding: 2px;
 	box-sizing: border-box;
+	width: 100%;
 }
 
 span {
@@ -119,4 +124,76 @@ span {
 	margin-left: 4px;
 	margin-right: 4px;
 	padding: 0;
+}
+
+.container {
+	display: grid;
+	grid-template-columns: 160px 1fr;
+	grid-template-rows: 120px 1fr;
+	grid-column-gap: 1px;
+	grid-row-gap: 1px;
+	justify-items: stretch;
+	align-items: stretch;
+ }
+
+ .control {
+    display: block;
+    position: relative;
+    padding-left: 22px;
+    margin-bottom: 5px;
+    padding-top: 7px;
+    cursor: pointer;
+}
+    .control input {
+        position: absolute;
+        z-index: -1;
+        opacity: 0;
+    }
+.control_indicator {
+    position: absolute;
+    top: 5px;
+    left: 0;
+    height: 16px;
+    width: 16px;
+    background: white;
+    border: 1px solid #000000;
+}
+
+.control:hover input ~ .control_indicator,
+.control input:focus ~ .control_indicator {
+    background: #cccccc;
+}
+
+.control input:checked ~ .control_indicator {
+    background: #ffffff;
+}
+/* .control:hover input:not([disabled]):checked ~ .control_indicator,
+.control input:checked:focus ~ .control_indicator {
+    background: #0e6647;
+} */
+.control input:disabled ~ .control_indicator {
+    background: #e6e6e6;
+    opacity: 0.6;
+    pointer-events: none;
+}
+.control_indicator:after {
+    box-sizing: unset;
+    content: '';
+    position: absolute;
+    display: none;
+}
+.control input:checked ~ .control_indicator:after {
+    display: block;
+}
+.control-checkbox .control_indicator:after {
+    left: 4px;
+    top: 0px;
+    width: 3px;
+    height: 10px;
+    border: solid #000000;
+    border-width: 0 3px 3px 0;
+    transform: rotate(45deg);
+}
+.control-checkbox input:disabled ~ .control_indicator:after {
+    border-color: #7b7b7b;
 }
