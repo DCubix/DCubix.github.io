@@ -75,6 +75,11 @@ html, body {
 	box-sizing: border-box;
 }
 
+#timeline {
+	border: 1px inset var(--gui-shadow);
+	box-sizing: border-box;
+}
+
 .panel1 {
 	border: 1px outset var(--gui-shadow);
 	background: var(--gui);
@@ -96,7 +101,7 @@ button:active {
 	outline: none;
 }
 
-input {
+input, select {
 	outline: none;
 	border: 1px inset var(--gui-shadow);
 	padding: 2px;

@@ -97,6 +97,12 @@ function Reader(code) {
 	};
 }
 
+function Keyframe(pos, rot, frame) {
+	this.targetPos = pos;
+	this.targetRot = rot;
+	this.frame = frame;
+}
+
 /**
  *
  * @param {Number} rot
@@ -106,41 +112,81 @@ function Reader(code) {
  */
 var ID = 0;
 function Figure(rot, length, x, y, circle, color, thickness, movable) {
-	this.id = ID++;
 	this.pos = new Vec2(x || 0, y || 0);
 	this.rot = rot || 0;
 	this.length = length || 0;
 	this.color = color || "black";
 	this.thickness = thickness || 10;
 	this.circle = circle || false;
-	this.movable = movable || true;
 	this.ik = 0;
-	this.name = "fig_" + this.id;
 
 	this.children = [];
 	this.parent = null;
-	this.selected = false;
+
+	// Animation
+	this.keyframes = [];
+
+	// Editor
+	this.id = ID++;
+	this.name = "fig_" + this.id;
+	this.movable = movable || true;
 
 	/**
 	 * @param {CanvasRenderingContext2D} ctx
 	 */
-	this.draw = function(ctx, color) {
+	this.draw = function(ctx, pos, rot, color) {
 		ctx.save();
-		ctx.rotate(this.rot);
-		ctx.translate(this.pos.x, this.pos.y);
+		ctx.rotate(rot);
+		ctx.translate(pos.x, pos.y);
 
 		if (this.length > 0 && this.thickness > 0) {
 			let col = color || this.color;
 
-			if (this.selected) {
-				ctx.strokeStyle = "red";
-				ctx.lineWidth = this.thickness + 3;
+			if (!this.circle) {
+				ctx.strokeStyle = col;
+				ctx.lineWidth = this.thickness;
 				ctx.lineCap = "round";
 				ctx.beginPath();
 				ctx.moveTo(0, 0);
 				ctx.lineTo(this.length, 0);
 				ctx.stroke();
+			} else {
+				ctx.fillStyle = col;
+				ctx.beginPath();
+				ctx.arc(this.length / 2, 0, this.length / 2, 0, Math.PI * 2);
+				ctx.fill();
 			}
+
+			ctx.translate(this.length, 0);
+		}
+
+
+		for (let c of this.children) {
+			c.draw(ctx, c.pos, c.rot, color);
+		}
+
+		ctx.restore();
+	};
+
+	this.drawGhost = function(ctx, frame) {
+		let pos = new Vec2(this.pos);
+		let rot = this.rot;
+		let kf = this.previousKeyframe(frame);
+
+		if (kf !== null) {
+			let xform = this.getAnimatedTransform(kf.frame);
+			if (xform !== null) {
+				pos = xform[0];
+				rot = xform[1];
+			}
+		}
+
+		ctx.save();
+		ctx.rotate(rot);
+		ctx.translate(pos.x, pos.y);
+
+		if (this.length > 0 && this.thickness > 0) {
+			let col = "#bbb";
 
 			if (!this.circle) {
 				ctx.strokeStyle = col;
@@ -161,7 +207,7 @@ function Figure(rot, length, x, y, circle, color, thickness, movable) {
 		}
 
 		for (let c of this.children) {
-			c.draw(ctx, color);
+			c.drawGhost(ctx, frame);
 		}
 
 		ctx.restore();
@@ -243,34 +289,11 @@ function Figure(rot, length, x, y, circle, color, thickness, movable) {
 		}
 		return figs;
 	};
-}
 
-/**
- * @param {Figure} fig
- */
-function Keyframe(pos, rot, frame) {
-	this.targetPos = pos;
-	this.targetRot = rot;
-	this.frame = frame;
-}
-
-function Scene(width, height, fps, frameCount) {
-	this.figures = [];
-	this.keyframes = {};
-	this.fps = fps || 24;
-	this.endFrame = frameCount || 255;
-	this.width = width || 512;
-	this.height = height || 512;
-
-	this.addKeyframe = function(id, pos, rot, frame) {
-		let name = "fig_" + id;
-		if (this.keyframes[name] === undefined || this.keyframes[name] === null) {
-			this.keyframes[name] = [];
-		}
-
+	this.addKeyframe = function(pos, rot, frame) {
 		let foundFrame = null;
 		let frameID = 0;
-		for (let k of this.keyframes[name]) {
+		for (let k of this.keyframes) {
 			if (k.frame === frame || frame < k.frame) {
 				foundFrame = k;
 				break;
@@ -279,18 +302,65 @@ function Scene(width, height, fps, frameCount) {
 		}
 
 		if (foundFrame === null) {
-			this.keyframes[name].push(new Keyframe(pos, rot, frame));
+			this.keyframes.push(new Keyframe(pos, rot, frame));
 		} else {
 			if (frame === foundFrame.frame) {
-				this.keyframes[name][frameID].targetPos = pos;
-				this.keyframes[name][frameID].targetRot = rot;
-				this.keyframes[name][frameID].frame = frame;
+				this.keyframes[frameID].targetPos = pos;
+				this.keyframes[frameID].targetRot = rot;
+				this.keyframes[frameID].frame = frame;
 			} else {
 				let id = frameID <= 0 ? 0 : frameID;
-				this.keyframes[name].insert(id, new Keyframe(pos, rot, frame));
+				this.keyframes.insert(id, new Keyframe(pos, rot, frame));
 			}
 		}
 	};
+
+	this.getAnimatedTransform = function(frame) {
+		if (this.keyframes.length === 0) {
+			return null;
+		} else if (this.keyframes.length === 1) {
+			return [new Vec2(this.keyframes[0].targetPos), this.keyframes[0].targetRot];
+		}
+		for (let i = 0; i < this.keyframes.length - 1; i++) {
+			let a = this.keyframes[i + 0];
+			let b = this.keyframes[i + 1];
+			if (frame >= a.frame && frame <= b.frame) {
+				let ta = a.frame, tb = b.frame, t = frame;
+				let time = (t - ta) / (tb - ta);
+				return [a.targetPos.lerp(b.targetPos, time), Math.angleLerp(a.targetRot, b.targetRot, time)];
+			}
+		}
+		return null;
+	};
+
+	this.animate = function(frame) {
+		let xform = this.getAnimatedTransform(frame);
+		if (xform !== null) {
+			this.pos = xform[0];
+			this.rot = xform[1];
+		}
+		for (let c of this.children) {
+			c.animate(frame);
+		}
+	};
+
+	this.previousKeyframe = function(frame) {
+		let foundFrame = null;
+		for (let i = this.keyframes.length - 1; i >= 0; i--) {
+			let k = this.keyframes[i];
+			if (frame > k.frame) {
+				foundFrame = k;
+				break;
+			}
+		}
+		return foundFrame;
+	};
+}
+
+function Scene(width, height) {
+	this.figures = [];
+	this.width = width || 512;
+	this.height = height || 512;
 
 	this.getFigure = function(id) {
 		for (let fig of this.figures) {
@@ -390,33 +460,21 @@ function Scene(width, height, fps, frameCount) {
 		this.addFigure(root[0]);
 	};
 
-	this.draw = function(ctx, onion) {
+	this.draw = function(ctx, esel) {
 		for (let fig of this.figures) {
-			fig.draw(ctx, onion ? "#ccc" : undefined);
+			fig.draw(ctx, fig.pos, fig.rot, undefined, esel);
 		}
 	};
 
-	this._animateTrack = function(fig, keyframes, frame) {
-		if (keyframes.length <= 1) {
-			return;
-		}
-		for (let i = 0; i < keyframes.length - 1; i++) {
-			let a = keyframes[i + 0];
-			let b = keyframes[i + 1];
-			if (frame >= a.frame && frame <= b.frame) {
-				let ta = a.frame, tb = b.frame, t = frame;
-				let time = (t - ta) / (tb - ta);
-				fig.pos = a.targetPos.lerp(b.targetPos, time);
-				fig.rot = Math.angleLerp(a.targetRot, b.targetRot, time);
-			}
+	this.drawGhost = function(ctx, frame) {
+		for (let fig of this.figures) {
+			fig.drawGhost(ctx, frame);
 		}
 	};
 
 	this.animate = function(frame) {
-		let obs = Object.keys(this.keyframes);
-		for (let k of obs) {
-			let keyframes = this.keyframes[k];
-			this._animateTrack(this.getFigure(parseInt(k.split("_")[1])), keyframes, frame);
+		for (let fig of this.figures) {
+			fig.animate(frame);
 		}
 	};
 }
@@ -508,7 +566,7 @@ function _fabrik(segments, tgt) {
 }
 //
 
-let mouse = new Vec2(0, 0);
+let mouse = new Vec2(0, 0), mouseSmooth = new Vec2(0, 0);
 let drag = false;
 
 let scene = new Scene();
@@ -517,6 +575,8 @@ let selectedStick = null, selectedFig = null, segments = [];
 function redraw() {
 	ctx.fillStyle = "white";
 	ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+	if (!TL.playing) scene.drawGhost(ctx, TL.current);
 	scene.draw(ctx);
 
 	if (selectedFig !== null && !TL.playing) {
@@ -529,20 +589,20 @@ canvas.height = scene.height;
 
 canvas.focus();
 canvas.onmousedown = function(e) {
+	if (TL.playing) return;
+
 	let rec = canvas.getBoundingClientRect();
 	drag = true;
 	mouse.x = e.clientX - rec.left;
 	mouse.y = e.clientY - rec.top;
+	mouseSmooth.x = mouse.x;
+	mouseSmooth.y = mouse.y;
 
 	let clickedFig = false;
 	for (let fig of scene.figures) {
 		let ob = fig.test(mouse.x, mouse.y);
 		if (ob !== null) {
-			if (!scene.keyframes[`fig_${ob.id}`]) {
-				scene.keyframes[`fig_${ob.id}`] = [];
-			}
-			let kf = scene.keyframes[`fig_${ob.id}`];
-			TL.setKeyFrames(kf);
+			TL.setKeyFrames(ob.keyframes);
 
 			if (selectedStick !== null) selectedStick.selected = false;
 			selectedStick = ob;
@@ -571,6 +631,7 @@ canvas.onmousemove = function(e) {
 	let rec = canvas.getBoundingClientRect();
 	mouse.x = e.clientX - rec.left;
 	mouse.y = e.clientY - rec.top;
+	mouseSmooth = mouseSmooth.lerp(mouse, 0.2);
 	if (drag) {
 		if (selectedStick !== null) {
 			if (selectedStick.parent !== null) {
@@ -583,7 +644,7 @@ canvas.onmousemove = function(e) {
 					changed = true;
 				} else {
 					if (segments !== null) {
-						_fabrik(segments, mouse);
+						_fabrik(segments, mouseSmooth);
 						_transferIK(selectedStick, segments);
 						changed = true;
 					}
@@ -610,32 +671,36 @@ window.onresize = function() {
 	redraw();
 };
 
-scene.addFigureString(`S(X: 5, Y: 5, NAME: root) {
-	S(ROT: -90, LEN: 40, NAME: torso) {
-		S(ROT: 130, LEN: 25, NAME: l_arm) {
-			S(ROT: 20, LEN: 25, IK: 2, NAME: l_farm)
+let figureLibrary = {
+	"Stick-Man": `S(X: 5, Y: 5, NAME: root) {
+		S(ROT: -90, LEN: 40, NAME: torso) {
+			S(ROT: 130, LEN: 25, NAME: l_arm) {
+				S(ROT: 20, LEN: 25, IK: 2, NAME: l_farm)
+			}
+			S(ROT: -130, LEN: 25, NAME: r_arm) {
+				S(ROT: -20, LEN: 25, IK: 2, NAME: r_farm)
+			}
+			S(LEN: 25, CIR: TRUE, MOV: FALSE, NAME: head)
 		}
-		S(ROT: -130, LEN: 25, NAME: r_arm) {
-			S(ROT: -20, LEN: 25, IK: 2, NAME: r_farm)
+		S(ROT: 130, LEN: 25, NAME: l_leg) {
+			S(ROT: -20, LEN: 25, IK: 2, NAME: l_fleg)
 		}
-		S(LEN: 25, CIR: TRUE, MOV: FALSE, NAME: head)
-	}
-	S(ROT: 130, LEN: 25, NAME: l_leg) {
-		S(ROT: -20, LEN: 25, IK: 2, NAME: l_fleg)
-	}
-	S(ROT: 45, LEN: 25, NAME: r_leg) {
-		S(ROT: 20, LEN: 25, IK: 2, NAME: r_fleg)
-	}
-}`);
+		S(ROT: 45, LEN: 25, NAME: r_leg) {
+			S(ROT: 20, LEN: 25, IK: 2, NAME: r_fleg)
+		}
+	}`,
+	"Custom": '_'
+};
+
 redraw();
 
 function newKeyframe() {
 	if (TL.playing) return;
 	if (selectedStick.ik === 0) {
-		scene.addKeyframe(selectedStick.id, new Vec2(selectedStick.pos), selectedStick.rot, TL.current);
+		selectedStick.addKeyframe(new Vec2(selectedStick.pos), selectedStick.rot, TL.current);
 	} else {
 		for (let ob of _getIKFigs(selectedStick)) {
-			scene.addKeyframe(ob.id, new Vec2(ob.pos), ob.rot, TL.current);
+			ob.addKeyframe(new Vec2(ob.pos), ob.rot, TL.current);
 		}
 	}
 	TL._redraw();
@@ -659,3 +724,27 @@ TL.ontick(function(f) {
 	scene.animate(f);
 	redraw();
 });
+
+let library = document.getElementById("library");
+let frameCount = document.getElementById("frames");
+TL.setFrames(100);
+
+for (let k in figureLibrary) {
+	let op = document.createElement("option");
+	op.setAttribute("value", figureLibrary[k]);
+	op.innerText = k;
+	library.appendChild(op);
+}
+
+function addFigure() {
+	if (library.value === ".") return;
+	if (library.value === "_") {
+	} else {
+		scene.addFigureString(library.value);
+	}
+	redraw();
+}
+
+frameCount.onchange = function(ev) {
+	TL.setFrames(parseInt(frameCount.value));
+};

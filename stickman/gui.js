@@ -7,12 +7,12 @@ let TL = {
 	_tick: null,
 	current: 0,
 	playing: false,
-	frames: 255,
+	frames: 100,
 	init: function() {
 		TL._canvas = document.getElementById("timeline");
 		TL._ctx = TL._canvas.getContext("2d");
 		TL._keyframes = null
-		TL.setFrames(255);
+		TL.setFrames(100);
 
 		TL._canvas.onmousedown = function(e) {
 			let rec = TL._canvas.getBoundingClientRect();
@@ -58,12 +58,12 @@ let TL = {
 	},
 	setFrames: function(count) {
 		TL.frames = count;
-		TL._canvas.width = count * 8;
+		TL._canvas.width = (count+1) * 8;
 		TL._redraw();
 	},
 	_click: function(x) {
 		let fx = ~~(x / 8);
-		TL.current = fx;
+		TL.current = Math.min(fx, TL.frames);
 		if (TL._tick) TL._tick(TL.current);
 		TL._redraw();
 	},
@@ -92,14 +92,16 @@ let TL = {
 		let w = TL._ctx.measureText(fram).width;
 		let cx = TL.current * 8;
 		TL._ctx.fillStyle = "rgba(0, 50, 250, 0.6)";
-		TL._ctx.fillRect(cx, 0, w + 4, 16);
+
+		let tx = cx + w + 4 >= TL._canvas.width ? TL._canvas.width - (w + 4) : cx;
+		TL._ctx.fillRect(tx, 0, w + 4, 16);
 		TL._ctx.fillRect(cx, 16, 8, 16);
 
 		TL._ctx.fillStyle = "white";
 		TL._ctx.font = "12px monospace";
-		TL._ctx.fillText(fram, cx + 1, 11);
+		TL._ctx.fillText(fram, tx + 1, 11);
 
-		for (let i = 0; i < TL.frames; i++) {
+		for (let i = 0; i <= TL.frames+1; i++) {
 			TL._ctx.beginPath();
 			TL._ctx.moveTo(i * 8, 16);
 			TL._ctx.lineTo(i * 8, TL._canvas.height + 16);
