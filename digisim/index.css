@@ -1,0 +1,42 @@
+* {
+	box-sizing: border-box;
+	padding: 0;
+	margin: 0;
+}
+
+body, html {
+	width: 100%;
+	height: 100%;
+}
+
+.parent {
+	display: grid;
+	grid-template-columns: 1fr 6fr;
+	grid-template-rows: 0.05fr 1fr;
+	grid-column-gap: 5px;
+	grid-row-gap: 0px;
+	width: 100%;
+	height: 100%;
+	background: #aaa;
+}
+	
+.toolbar {
+	grid-area: 2 / 1 / 3 / 2;
+	padding: 20px;
+	box-sizing: border-box;
+	background: white;
+	border-bottom-right-radius: 50px;
+}
+.nav {
+	grid-area: 1 / 1 / 2 / 3;
+	padding: 10px;
+	box-sizing: border-box;
+	background: white;
+}
+.main { grid-area: 2 / 2 / 3 / 3; }
+
+#view {
+	box-sizing: border-box;
+	width: 100%;
+	height: 100%;
+}
