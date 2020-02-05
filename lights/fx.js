@@ -1,10 +1,10 @@
-var Fx = Fx || {};
+var Engine = Engine || {};
 
 class Shader {
 	constructor(vsrc, fsrc) {
-		let gl = Fx.gl;
-		let vs = Fx.loadShader(vsrc, gl.VERTEX_SHADER);
-		let fs = Fx.loadShader(fsrc, gl.FRAGMENT_SHADER);
+		let gl = Engine.gl;
+		let vs = Engine.loadShader(vsrc, gl.VERTEX_SHADER);
+		let fs = Engine.loadShader(fsrc, gl.FRAGMENT_SHADER);
 		if (vs === null || fs === null)
 			return;
 
@@ -14,17 +14,21 @@ class Shader {
 
 		gl.attachShader(this.program, vs);
 		gl.attachShader(this.program, fs);
-		gl.linkProgram();
+		gl.linkProgram(this.program);
 	}
 
 	bind() {
-		Fx.gl.useProgram(this.program);
+		let gl = Engine.gl;
+		gl.useProgram(this.program);
 	}
 
 	getUniformLocation(name) {
+		/** @type {WebGLRenderingContext} */
+		let gl = Engine.gl;
+
 		let ks = Object.keys(this.uniforms);
 		if (ks.indexOf(name) === -1) {
-			let loc = Fx.gl.getUniformLocation(this.program, name);
+			let loc = gl.getUniformLocation(this.program, name);
 			if (loc) {
 				this.uniforms[name] = loc;
 			}
@@ -36,7 +40,7 @@ class Shader {
 
 	getAttribute(name) {
 		/** @type {WebGLRenderingContext} */
-		let gl = Fx.gl;
+		let gl = Engine.gl;
 
 		let ks = Object.keys(this.attributes);
 		if (ks.indexOf(name) === -1) {
@@ -51,31 +55,45 @@ class Shader {
 	}
 
 	seti(name, v) {
-		Fx.gl.uniform1i(this.getUniformLocation(name), v);
+		/** @type {WebGLRenderingContext} */
+		let gl = Engine.gl;
+		gl.uniform1i(this.getUniformLocation(name), v);
 	}
 
 	setf(name, v) {
-		Fx.gl.uniform1f(this.getUniformLocation(name), v);
+		/** @type {WebGLRenderingContext} */
+		let gl = Engine.gl;
+		gl.uniform1f(this.getUniformLocation(name), v);
 	}
 
 	set2f(name, x, y) {
-		Fx.gl.uniform2f(this.getUniformLocation(name), x, y);
+		/** @type {WebGLRenderingContext} */
+		let gl = Engine.gl;
+		gl.uniform2f(this.getUniformLocation(name), x, y);
 	}
 
 	set3f(name, x, y, z) {
-		Fx.gl.uniform3f(this.getUniformLocation(name), x, y, z);
+		/** @type {WebGLRenderingContext} */
+		let gl = Engine.gl;
+		gl.uniform3f(this.getUniformLocation(name), x, y, z);
 	}
 
 	set4f(name, x, y, z, w) {
-		Fx.gl.uniform4f(this.getUniformLocation(name), x, y, z, w);
+		/** @type {WebGLRenderingContext} */
+		let gl = Engine.gl;
+		gl.uniform4f(this.getUniformLocation(name), x, y, z, w);
 	}
 
 	set16f(name, vals) {
-		Fx.gl.uniformMatrix4fv(this.getUniformLocation(name), true, new Float32Array(vals));
+		/** @type {WebGLRenderingContext} */
+		let gl = Engine.gl;
+		gl.uniformMatrix4fv(this.getUniformLocation(name), false, new Float32Array(vals));
 	}
 
 	destroy() {
-		Fx.gl.deleteProgram(this.program);
+		/** @type {WebGLRenderingContext} */
+		let gl = Engine.gl;
+		gl.deleteProgram(this.program);
 	}
 }
 
@@ -96,14 +114,14 @@ class Texture {
 		this.height = height;
 
 		/** @type {WebGLRenderingContext} */
-		let gl = Fx.gl;
+		let gl = Engine.gl;
 
 		this.id = gl.createTexture();
 		gl.bindTexture(gl.TEXTURE_2D, this.id);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
 		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.NEAREST);
+		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 
 		let fmt = gl.RGBA;
 		switch (format.toLowerCase()) {
@@ -112,7 +130,7 @@ class Texture {
 			case "rgba": fmt = gl.RGBA; break;
 			case "depth": fmt = gl.DEPTH_COMPONENT; break;
 		}
-		gl.texImage2D(gl.TEXTURE_2D, 0, fmt, width, height, data);
+		gl.texImage2D(gl.TEXTURE_2D, 0, fmt, fmt, gl.UNSIGNED_BYTE, data);
 
 		gl.bindTexture(gl.TEXTURE_2D, null);
 	}
@@ -124,20 +142,20 @@ class Texture {
 	bind(slot) {
 		slot = slot || 0;
 		/** @type {WebGLRenderingContext} */
-		let gl = Fx.gl;
+		let gl = Engine.gl;
 		gl.activeTexture(gl.TEXTURE0 + slot);
 		gl.bindTexture(gl.TEXTURE_2D, this.id);
 	}
 
 	unbind() {
 		/** @type {WebGLRenderingContext} */
-		let gl = Fx.gl;
+		let gl = Engine.gl;
 		gl.bindTexture(gl.TEXTURE_2D, null);
 	}
 
 	destroy() {
 		/** @type {WebGLRenderingContext} */
-		let gl = Fx.gl;
+		let gl = Engine.gl;
 		gl.deleteTexture(this.id);
 	}
 }
@@ -145,7 +163,7 @@ class Texture {
 class RenderTexture {
 	constructor(width, height, format) {
 		/** @type {WebGLRenderingContext} */
-		let gl = Fx.gl;
+		let gl = Engine.gl;
 
 		this.texture = new Texture(width, height, format, null);
 
@@ -166,7 +184,7 @@ class RenderTexture {
 
 	bind() {
 		/** @type {WebGLRenderingContext} */
-		let gl = Fx.gl;
+		let gl = Engine.gl;
 
 		this.vp = gl.getParameter(gl.VIEWPORT);
 		gl.bindFramebuffer(gl.FRAMEBUFFER, this.id);
@@ -175,7 +193,7 @@ class RenderTexture {
 
 	unbind() {
 		/** @type {WebGLRenderingContext} */
-		let gl = Fx.gl;
+		let gl = Engine.gl;
 
 		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 		gl.viewport(this.vp[0], this.vp[1], this.vp[2], this.vp[3]);
@@ -183,7 +201,7 @@ class RenderTexture {
 
 }
 
-Fx.DefaultVertexShader = `precision highp float;
+Engine.DefaultVertexShader = `precision highp float;
 attribute vec2 vPosition;
 attribute vec2 vTexCoord;
 attribute vec3 vTangent;
@@ -201,7 +219,7 @@ void main() {
 	gl_Position = uProjView * pos;
 
 	oColor = vColor;
-	oPosition = pos;
+	oPosition = pos.xy;
 	oTexCoord = vTexCoord;
 	
 	vec3 N = vec3(0.0, 0.0, 1.0);
@@ -211,7 +229,7 @@ void main() {
 	oTBN = mat3(T, B, N);
 }`;
 
-Fx.FragmentShaderHeader = `precision mediump float;
+Engine.FragmentShaderHeader = `precision mediump float;
 varying vec4 oColor;
 varying vec2 oPosition;
 varying vec2 oTexCoord;
@@ -223,9 +241,9 @@ varying mat3 oTBN;
 class SpriteBatcher {
 	constructor() {
 		/** @type {WebGLRenderingContext} */
-		let gl = Fx.gl;
+		let gl = Engine.gl;
 
-		const fs = Fx.FragmentShaderHeader +
+		const fs = Engine.FragmentShaderHeader +
 `uniform sampler2D uTex;
 uniform float uTexEnable;
 void main() {
@@ -238,7 +256,7 @@ void main() {
 		this.vboSize = 0;
 		this.vertexCount = 0;
 
-		this.defaultShader = new Shader(Fx.DefaultVertexShader, fs);
+		this.defaultShader = new Shader(Engine.DefaultVertexShader, fs);
 		this.shader = this.defaultShader;
 
 		this.vertices = [];
@@ -281,7 +299,7 @@ void main() {
 
 		let tpos = [];
 		for (let i = 0; i < pos.length; i+=2) {
-			let p = Fx.transform(pos[i] - ox, pos[i + 1] - oy, x, y, sx, sy, rot);
+			let p = Engine.transform(pos[i] - ox, pos[i + 1] - oy, x, y, sx, sy, rot);
 			tpos.push(...p);
 		}
 
@@ -326,7 +344,7 @@ void main() {
 		texture = texture || null;
 		
 		/** @type {WebGLRenderingContext} */
-		let gl = Fx.gl;
+		let gl = Engine.gl;
 		
 		this.shader.bind();
 
@@ -365,20 +383,97 @@ void main() {
 
 };
 
-Fx.create = function(width, height) {
-	Fx.canvas = document.createElement("canvas");
+class AssetManager {
+	constructor() {
+		this.files = [];
+
+		this.images = {};
+	}
+
+	addImage(name, url) {
+		this.files.push({
+			type: "image",
+			url: url,
+			name: name
+		});
+	}
+
+	load(callback) {
+		let ok = 0, err = 0;
+
+		let that = this;
+		function check() {
+			if (ok + err >= that.files.length && callback) callback();
+		}
+
+		if (this.files.length === 0) check();
+
+		for (let it of this.files) {
+			if (it.type.toLowerCase() === "image") {
+				let img = new Image();
+				img.onload = function() {
+					that.images[it.name] = new Texture(img.width, img.height, "rgba", img);
+					ok++;
+					check();
+				};
+				img.onerror = function() {
+					err++;
+					check();
+				};
+				img.src = it.url;
+			}
+		}
+	}
+}
+
+Engine.create = function(width, height, game) {
+	Engine.canvas = document.createElement("canvas");
+	Engine.canvas.width = width;
+	Engine.canvas.height = height;
 
 	/** @type {WebGLRenderingContext} */
-	let gl = Fx.gl = Fx.canvas.getContext("webgl");
+	let gl = Engine.gl = Engine.canvas.getContext("webgl");
 	if (gl === null) {
 		alert("Unable to initialize WebGL. Your browser or machine may not support it.");
 		return;
 	}
-	document.body.appendChild(Fx.canvas);
+	document.body.appendChild(Engine.canvas);
+
+	gl.viewport(0, 0, width, height);
+
+	Engine.renderer = new SpriteBatcher();
+	Engine.assets = new AssetManager();
+	Engine.game = game;
+	
+	if (game.preload) game.preload(Engine.assets);
+
+	Engine.assets.load(function() {
+		if (game.create) game.create();
+		Engine.run();
+	});
 };
 
-Fx.loadShader = function(src, type) {
-	let gl = Fx.gl;
+const timeStep = 1.0 / 60.0;
+var lastTime = Date.now();
+var accum = 0;
+Engine.run = function() {
+	let currTime = Date.now();
+	let delta = currTime - lastTime;
+	lastTime = currTime;
+	accum += delta;
+
+	while (accum >= timeStep) {
+		if (Engine.game.update) Engine.game.update(timeStep);
+		accum -= timeStep;
+	}
+
+	if (Engine.game.render) Engine.game.render(Engine.renderer, Engine.gl);
+
+	window.requestAnimationFrame(Engine.run);
+};
+
+Engine.loadShader = function(src, type) {
+	let gl = Engine.gl;
 	let shader = gl.createShader(type);
 	gl.shaderSource(shader, src);
 	gl.compileShader(shader);
@@ -391,7 +486,7 @@ Fx.loadShader = function(src, type) {
 	return shader;
 };
 
-Fx.transform = function(x, y,  tx, ty, sx, sy, rotation) {
+Engine.transform = function(x, y,  tx, ty, sx, sy, rotation) {
 	let c = Math.cos(rotation), s = Math.sin(rotation);
 
 	let fx = x + tx;
@@ -403,7 +498,7 @@ Fx.transform = function(x, y,  tx, ty, sx, sy, rotation) {
 	return [ rx * sx, ry * sy ];
 };
 
-Fx.ortho = function(left, right, top, bottom, near, far) {
+Engine.ortho = function(left, right, top, bottom, near, far) {
 	const w = right - left;
 	const h = top - bottom;
 	const d = far - near;

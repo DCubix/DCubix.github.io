@@ -10,6 +10,7 @@
 				background: #444;
 				width: 100%;
 				height: 100%;
+				margin: 0;
 			}
 			body {
 				display: flex;
@@ -20,7 +21,28 @@
 
 		<script type="text/javascript" src="./fx.js"></script>
 		<script type="text/javascript">
-			FX.create(640, 480);
+			let game = {
+				preload: function(assets) {
+					assets.addImage("ball", "./ball.png");
+				},
+				create: function() {
+
+				},
+				render: function(ren, gl) {
+					let assets = Engine.assets;
+
+					gl.clearColor(0.0, 0.0, 0.0, 1.0);
+					gl.clear(gl.COLOR_BUFFER_BIT);
+
+					ren.begin();
+					ren.sprite(0, 0);
+					ren.end(assets.images["ball"], Engine.ortho(0, 640, 480, 0, -1, 1));
+				},
+				update: function(dt) {
+				}
+			};
+
+			Engine.create(640, 480, game);
 		</script>
 	</body>
 </html>
