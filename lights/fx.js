@@ -1,5 +1,125 @@
 var Engine = Engine || {};
 
+var mat4 = {
+	translation: function(x, y, z) {
+		return [
+			1, 0, 0, 0,
+			0, 1, 0, 0,
+			0, 0, 1, 0,
+			x, y, z, 1,
+		];
+	},
+	rotationZ: function(rot) {
+		let c = Math.cos(rot);
+		let s = Math.sin(rot);
+	
+		return [
+			c, s, 0, 0,
+			-s, c, 0, 0,
+			0, 0, 1, 0,
+			0, 0, 0, 1,
+		];
+	},
+	scale: function(x, y, z) {
+		return [
+			x, 0, 0, 0,
+			0, y, 0, 0,
+			0, 0, z, 0,
+			0, 0, 0, 1,
+		];
+	},
+	mul: function(a, b) {
+		let b00 = b[0 * 4 + 0];
+		let b01 = b[0 * 4 + 1];
+		let b02 = b[0 * 4 + 2];
+		let b03 = b[0 * 4 + 3];
+		let b10 = b[1 * 4 + 0];
+		let b11 = b[1 * 4 + 1];
+		let b12 = b[1 * 4 + 2];
+		let b13 = b[1 * 4 + 3];
+		let b20 = b[2 * 4 + 0];
+		let b21 = b[2 * 4 + 1];
+		let b22 = b[2 * 4 + 2];
+		let b23 = b[2 * 4 + 3];
+		let b30 = b[3 * 4 + 0];
+		let b31 = b[3 * 4 + 1];
+		let b32 = b[3 * 4 + 2];
+		let b33 = b[3 * 4 + 3];
+		let a00 = a[0 * 4 + 0];
+		let a01 = a[0 * 4 + 1];
+		let a02 = a[0 * 4 + 2];
+		let a03 = a[0 * 4 + 3];
+		let a10 = a[1 * 4 + 0];
+		let a11 = a[1 * 4 + 1];
+		let a12 = a[1 * 4 + 2];
+		let a13 = a[1 * 4 + 3];
+		let a20 = a[2 * 4 + 0];
+		let a21 = a[2 * 4 + 1];
+		let a22 = a[2 * 4 + 2];
+		let a23 = a[2 * 4 + 3];
+		let a30 = a[3 * 4 + 0];
+		let a31 = a[3 * 4 + 1];
+		let a32 = a[3 * 4 + 2];
+		let a33 = a[3 * 4 + 3];
+		let dst = new Array(16);
+		dst[ 0] = b00 * a00 + b01 * a10 + b02 * a20 + b03 * a30;
+		dst[ 1] = b00 * a01 + b01 * a11 + b02 * a21 + b03 * a31;
+		dst[ 2] = b00 * a02 + b01 * a12 + b02 * a22 + b03 * a32;
+		dst[ 3] = b00 * a03 + b01 * a13 + b02 * a23 + b03 * a33;
+		dst[ 4] = b10 * a00 + b11 * a10 + b12 * a20 + b13 * a30;
+		dst[ 5] = b10 * a01 + b11 * a11 + b12 * a21 + b13 * a31;
+		dst[ 6] = b10 * a02 + b11 * a12 + b12 * a22 + b13 * a32;
+		dst[ 7] = b10 * a03 + b11 * a13 + b12 * a23 + b13 * a33;
+		dst[ 8] = b20 * a00 + b21 * a10 + b22 * a20 + b23 * a30;
+		dst[ 9] = b20 * a01 + b21 * a11 + b22 * a21 + b23 * a31;
+		dst[10] = b20 * a02 + b21 * a12 + b22 * a22 + b23 * a32;
+		dst[11] = b20 * a03 + b21 * a13 + b22 * a23 + b23 * a33;
+		dst[12] = b30 * a00 + b31 * a10 + b32 * a20 + b33 * a30;
+		dst[13] = b30 * a01 + b31 * a11 + b32 * a21 + b33 * a31;
+		dst[14] = b30 * a02 + b31 * a12 + b32 * a22 + b33 * a32;
+		dst[15] = b30 * a03 + b31 * a13 + b32 * a23 + b33 * a33;
+		return dst;
+	},
+	xform: function(a, b) {
+		if (a.length !== 16 || b.length !== 4) return null;
+
+		let a00 = a[0 * 4 + 0];
+		let a01 = a[0 * 4 + 1];
+		let a02 = a[0 * 4 + 2];
+		let a03 = a[0 * 4 + 3];
+		let a10 = a[1 * 4 + 0];
+		let a11 = a[1 * 4 + 1];
+		let a12 = a[1 * 4 + 2];
+		let a13 = a[1 * 4 + 3];
+		let a20 = a[2 * 4 + 0];
+		let a21 = a[2 * 4 + 1];
+		let a22 = a[2 * 4 + 2];
+		let a23 = a[2 * 4 + 3];
+		let a30 = a[3 * 4 + 0];
+		let a31 = a[3 * 4 + 1];
+		let a32 = a[3 * 4 + 2];
+		let a33 = a[3 * 4 + 3];
+		return [
+			a00 * b[0] + a01 * b[1] + a02 * b[2] + a03 * b[3],
+			a10 * b[0] + a11 * b[1] + a12 * b[2] + a13 * b[3],
+			a20 * b[0] + a21 * b[1] + a22 * b[2] + a23 * b[3],
+			a30 * b[0] + a31 * b[1] + a32 * b[2] + a33 * b[3]
+		];
+	},
+	ortho: function(left, right, bottom, top, near, far) {
+		return [
+			2 / (right - left), 0, 0, 0,
+			0, 2 / (top - bottom), 0, 0,
+			0, 0, 2 / (near - far), 0,
+	
+			(left + right) / (left - right),
+			(bottom + top) / (bottom - top),
+			(near + far) / (near - far),
+			1.0
+		];
+	}
+};
+
 class Shader {
 	constructor(vsrc, fsrc) {
 		let gl = Engine.gl;
@@ -29,7 +149,7 @@ class Shader {
 		let ks = Object.keys(this.uniforms);
 		if (ks.indexOf(name) === -1) {
 			let loc = gl.getUniformLocation(this.program, name);
-			if (loc) {
+			if (loc !== -1) {
 				this.uniforms[name] = loc;
 			}
 			else
@@ -45,7 +165,7 @@ class Shader {
 		let ks = Object.keys(this.attributes);
 		if (ks.indexOf(name) === -1) {
 			let loc = gl.getAttribLocation(this.program, name);
-			if (loc) {
+			if (loc !== -1) {
 				this.attributes[name] = loc;
 			}
 			else
@@ -235,7 +355,6 @@ varying vec2 oPosition;
 varying vec2 oTexCoord;
 varying mat3 oTBN;
 
-#line 1
 `;
 
 class SpriteBatcher {
@@ -258,14 +377,41 @@ void main() {
 
 		this.defaultShader = new Shader(Engine.DefaultVertexShader, fs);
 		this.shader = this.defaultShader;
+		this.texture = null;
+		this.proj = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+		this.view = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+		this.blending = "opaque";
 
 		this.vertices = [];
 
 		this.drawing = false;
 	}
 
+	setProjection(m) {
+		if (this.drawing) this.flush();
+		this.proj = m;
+	}
+
+	setView(m) {
+		if (this.drawing) this.flush();
+		this.view = m;
+	}
+
+	setShader(shader) {
+		if (this.drawing) this.flush();
+		this.shader = shader ? shader : this.defaultShader;
+		if (this.drawing) {
+			this.shader.bind();
+		}
+	}
+
+	setBlending(blend) {
+		if (this.drawing) this.flush();
+		this.blending = blend;
+	}
+
 	/**
-	 * 
+	 * @param {Texture} texture
 	 * @param {number} x 
 	 * @param {number} y 
 	 * @param {number} sx 
@@ -276,7 +422,7 @@ void main() {
 	 * @param {Array} color 
 	 * @param {Array} uv 
 	 */
-	sprite(x, y, sx, sy, ox, oy, rot, color, uv) {
+	sprite(texture, x, y, sx, sy, ox, oy, rot, color, uv) {
 		x = x || 0;
 		y = y || 0;
 		sx = sx || 1;
@@ -290,63 +436,103 @@ void main() {
 		if (color.length < 4) throw 'Invalid Color.';
 		if (uv.length < 4) throw 'Invalid UV.';
 
-		let pos = [
-			0.0, 0.0,
-			1.0, 0.0,
-			1.0, 1.0,
-			0.0, 1.0
-		];
-
-		let tpos = [];
-		for (let i = 0; i < pos.length; i+=2) {
-			let p = Engine.transform(pos[i] - ox, pos[i + 1] - oy, x, y, sx, sy, rot);
-			tpos.push(...p);
+		if (!this.drawing) this.flush();
+		if (this.texture !== texture) {
+			this.flush();
+			this.texture = texture;
 		}
 
-		let tx = Math.cos(rot), ty = Math.sin(rot);
+		let tw = texture.width * uv[2];
+		let th = texture.height * uv[3];
+		ox *= tw;
+		oy *= th;
+
+		let tlx = -ox * sx;
+		let tly = -oy * sy;
+		let brx = (tw - ox) * sx;
+		let bry = (th - oy) * sy;
+
+		let c = Math.cos(rot), s = Math.sin(rot);
+
+		let x1 = c * tlx - s * tly,
+			y1 = s * tlx + c * tly,
+			x2 = c * brx - s * tly,
+			y2 = s * brx + c * tly,
+			x3 = c * brx - s * bry,
+			y3 = s * brx + c * bry,
+			x4 = c * tlx - s * bry,
+			y4 = s * tlx + c * bry;
+
+		x1 += x; y1 += y;
+		x2 += x; y2 += y;
+		x3 += x; y3 += y;
+		x4 += x; y4 += y;
 
 		this.vertices.push(...[
-			tpos[0], tpos[1],  uv[0],                 uv[1], tx, ty, 0.0,  ...color,
-			tpos[2], tpos[3],  uv[0] + uv[2],         uv[1], tx, ty, 0.0,  ...color,
-			tpos[4], tpos[5],  uv[0] + uv[2], uv[1] + uv[3], tx, ty, 0.0,  ...color,
-			tpos[4], tpos[5],  uv[0] + uv[2], uv[1] + uv[3], tx, ty, 0.0,  ...color,
-			tpos[6], tpos[7],  uv[0],         uv[1] + uv[3], tx, ty, 0.0,  ...color,
-			tpos[0], tpos[1],  uv[0],                 uv[1], tx, ty, 0.0,  ...color
+			x1, y1,  uv[0],                 uv[1], c, s, 0.0,  ...color,
+			x2, y2,  uv[0] + uv[2],         uv[1], c, s, 0.0,  ...color,
+			x3, y3,  uv[0] + uv[2], uv[1] + uv[3], c, s, 0.0,  ...color,
+			x3, y3,  uv[0] + uv[2], uv[1] + uv[3], c, s, 0.0,  ...color,
+			x4, y4,  uv[0],         uv[1] + uv[3], c, s, 0.0,  ...color,
+			x1, y1,  uv[0],                 uv[1], c, s, 0.0,  ...color
 		]);
 
 		this.vertexCount += 6;
 	}
 
-	begin(shader) {
+	disc(texture, x, y, radius, color, slices) {
+		color = color || [1, 1, 1, 1];
+		slices = slices || 32;
+		if (color.length < 4) throw 'Invalid Color.';
+
+		if (!this.drawing) this.flush();
+		if (this.texture !== texture) {
+			this.flush();
+			this.texture = texture;
+		}
+
+		let first = [ x, y,  0.5, 0.5,  1.0, 0.0, 0.0,  ...color ];
+		const step = 360 / slices;
+
+		let verts = [];
+		verts.push(first);
+		for (let i = 0; i <= 360; i += step) {
+			let a = i / 180.0 * Math.PI;
+			let c = Math.cos(a), s = Math.sin(a);
+			let vx = x + c * radius;
+			let vy = y + s * radius;
+
+			verts.push([ vx, vy,  c * 0.5 + 0.5, s * 0.5 + 0.5,  1.0, 0.0, 0.0,  ...color ]);
+		}
+
+		for (let i = 1; i < verts.length - 1; i++) {
+			this.vertices.push(...verts[0    ]);
+			this.vertices.push(...verts[i + 0]);
+			this.vertices.push(...verts[i + 1]);
+			this.vertexCount += 3;
+		}
+	}
+
+	begin() {
 		if (this.drawing) {
 			console.error("Please end the drawing first.");
 			return;
 		}
-		shader = shader || null;
-		if (shader !== null) {
-			this.shader = shader;
-		}
+		/** @type {WebGLRenderingContext} */
+		let gl = Engine.gl;
+		gl.depthMask(false);
+		this.shader.bind();
 		this.drawing = true;
 	}
 
-	end(texture, projview, flush) {
-		if (!this.drawing) {
-			console.error("Please start the drawing first.");
-			return;
-		}
-		projview = projview || [
-			1.0, 0.0, 0.0, 0.0,
-			0.0, 1.0, 0.0, 0.0,
-			0.0, 0.0, 1.0, 0.0,
-			0.0, 0.0, 0.0, 1.0
-		];
-		flush = flush || true;
-		texture = texture || null;
-		
+	flush(clear) {
+		if (this.vertices.length === 0) return;
+		if (this.texture) this.texture.bind(0);
+
 		/** @type {WebGLRenderingContext} */
 		let gl = Engine.gl;
-		
-		this.shader.bind();
+
+		clear = clear || true;
 
 		gl.bindBuffer(gl.ARRAY_BUFFER, this.vbo);
 		if (this.vboSize < this.vertices.length) {
@@ -356,29 +542,55 @@ void main() {
 			gl.bufferSubData(gl.ARRAY_BUFFER, 0, new Float32Array(this.vertices));
 		}
 
+		gl.enableVertexAttribArray(this.shader.getAttribute("vPosition"));
+		gl.enableVertexAttribArray(this.shader.getAttribute("vTexCoord"));
+		gl.enableVertexAttribArray(this.shader.getAttribute("vTangent"));
+		gl.enableVertexAttribArray(this.shader.getAttribute("vColor"));
+
 		gl.vertexAttribPointer(this.shader.getAttribute("vPosition"), 2, gl.FLOAT, false, 44, 0);
 		gl.vertexAttribPointer(this.shader.getAttribute("vTexCoord"), 2, gl.FLOAT, false, 44, 8);
 		gl.vertexAttribPointer(this.shader.getAttribute("vTangent"),  3, gl.FLOAT, false, 44, 16);
 		gl.vertexAttribPointer(this.shader.getAttribute("vColor"),    4, gl.FLOAT, false, 44, 28);
 
-		this.shader.set16f("uProjView", projview);
+		this.shader.set16f("uProjView", mat4.mul(this.proj, this.view));
 
-		if (texture) {
-			texture.bind(0);
+		if (this.texture) {
 			this.shader.seti("uTex", 0);
 			this.shader.setf("uTexEnable", 1.0);
 		} else {
 			this.shader.setf("uTexEnable", 0.0);
 		}
 
-		gl.drawArrays(gl.TRIANGLES, 0, this.vertexCount);
+		gl.enable(gl.BLEND);
+		switch (this.blending.toLowerCase()) {
+			default:
+			case "opaque": gl.disable(gl.BLEND); break;
+			case "add": gl.blendFunc(gl.ONE, gl.ONE); break;
+			case "alpha": gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); break;
+		}
 
-		if (flush) {
+		gl.drawArrays(gl.TRIANGLES, 0, this.vertexCount);
+		gl.disable(gl.BLEND);
+
+		if (clear) {
 			this.vertexCount = 0;
 			this.vertices = [];
 		}
+	}
 
+	end() {
+		if (!this.drawing) {
+			console.error("Please start the drawing first.");
+			return;
+		}
+		if (this.vertices.length > 0) this.flush();
+
+		/** @type {WebGLRenderingContext} */
+		let gl = Engine.gl;
+		
+		this.texture = null;
 		this.drawing = false;
+		gl.depthMask(true);
 	}
 
 };
@@ -426,6 +638,78 @@ class AssetManager {
 	}
 }
 
+class InputManager {
+	/**
+	 * 
+	 * @param {HTMLCanvasElement} canvas 
+	 */
+	constructor(canvas) {
+		this.keydown = [];
+		this.keyrelease = [];
+		this.keypress = [];
+		this.mousedown = [];
+		this.mouserelease = [];
+		this.mousepress = [];
+		this.mousePos = [0, 0];
+
+		let that = this;
+		window.onkeydown = function(e) {
+			e.preventDefault();
+			that.keydown[e.keyCode] = true;
+			that.keypress[e.keyCode] = true;
+		};
+		window.onkeyup = function(e) {
+			e.preventDefault();
+			that.keydown[e.keyCode] = false;
+			that.keyrelease[e.keyCode] = true;
+		};
+		canvas.onmousedown = function(e) {
+			e.preventDefault();
+			that.mousedown[e.button] = true;
+			that.mousepress[e.button] = true;
+		};
+		canvas.onmouseup = function(e) {
+			e.preventDefault();
+			that.mousedown[e.button] = false;
+			that.mouserelease[e.button] = true;
+		};
+		canvas.onmousemove = function(e) {
+			let r = canvas.getBoundingClientRect();
+			that.mousePos[0] = e.clientX - r.left;
+			that.mousePos[1] = e.clientY - r.top;
+		};
+		canvas.oncontextmenu = function(e) {
+			return false;
+		};
+		canvas.focus();
+	}
+
+	keyDown(k) { return this.keydown[k]; }
+	keyPressed(k) { return this.keypress[k]; }
+	keyReleased(k) { return this.keyrelease[k]; }
+
+	mouseDown(k) { return this.mousedown[k]; }
+	mousePressed(k) { return this.mousepress[k]; }
+	mouseReleased(k) { return this.mouserelease[k]; }
+
+	mousePosition() { return this.mousePos; }
+
+	update() {
+		for (let k in this.keypress) {
+			this.keypress[k] = false;
+		}
+		for (let k in this.keyrelease) {
+			this.keyrelease[k] = false;
+		}
+		for (let k in this.mousepress) {
+			this.mousepress[k] = false;
+		}
+		for (let k in this.mouserelease) {
+			this.mouserelease[k] = false;
+		}
+	}
+}
+
 Engine.create = function(width, height, game) {
 	Engine.canvas = document.createElement("canvas");
 	Engine.canvas.width = width;
@@ -440,10 +724,12 @@ Engine.create = function(width, height, game) {
 	document.body.appendChild(Engine.canvas);
 
 	gl.viewport(0, 0, width, height);
+	gl.disable(gl.CULL_FACE);
 
 	Engine.renderer = new SpriteBatcher();
 	Engine.assets = new AssetManager();
 	Engine.game = game;
+	Engine.input = new InputManager(Engine.canvas);
 	
 	if (game.preload) game.preload(Engine.assets);
 
@@ -453,23 +739,25 @@ Engine.create = function(width, height, game) {
 	});
 };
 
-const timeStep = 1.0 / 60.0;
+const timeStep = 1000 / 60.0;
 var lastTime = Date.now();
 var accum = 0;
 Engine.run = function() {
+	window.requestAnimationFrame(Engine.run);
+
 	let currTime = Date.now();
 	let delta = currTime - lastTime;
 	lastTime = currTime;
 	accum += delta;
 
 	while (accum >= timeStep) {
-		if (Engine.game.update) Engine.game.update(timeStep);
+		if (Engine.game.update) Engine.game.update(timeStep, Engine.input);
 		accum -= timeStep;
 	}
 
-	if (Engine.game.render) Engine.game.render(Engine.renderer, Engine.gl);
+	Engine.input.update();
 
-	window.requestAnimationFrame(Engine.run);
+	if (Engine.game.render) Engine.game.render(Engine.renderer, Engine.gl);
 };
 
 Engine.loadShader = function(src, type) {
@@ -484,28 +772,4 @@ Engine.loadShader = function(src, type) {
 		return null;
 	}
 	return shader;
-};
-
-Engine.transform = function(x, y,  tx, ty, sx, sy, rotation) {
-	let c = Math.cos(rotation), s = Math.sin(rotation);
-
-	let fx = x + tx;
-	let fy = y + ty;
-
-	let rx = c * fx - s * fy;
-	let ry = c * fy + s * fx;
-
-	return [ rx * sx, ry * sy ];
-};
-
-Engine.ortho = function(left, right, top, bottom, near, far) {
-	const w = right - left;
-	const h = top - bottom;
-	const d = far - near;
-	return [
-		2.0 / w, 0.0, 0.0, -((right + left) / w),
-		0.0, 2.0 / h, 0.0, -((top + bottom) / h),
-		0.0, 0.0, -2.0 / d, -((far + near) / d),
-		0.0, 0.0, 0.0, 1.0
-	];
 };

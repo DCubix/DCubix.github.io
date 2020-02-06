@@ -21,27 +21,82 @@
 
 		<script type="text/javascript" src="./fx.js"></script>
 		<script type="text/javascript">
+			let balls = [];
+
+			const GRAVITY = 0.65;
+			const BOUNCE = 0.9;
+			const FRICTION = 0.98;
+
 			let game = {
 				preload: function(assets) {
 					assets.addImage("ball", "./ball.png");
 				},
 				create: function() {
-
 				},
 				render: function(ren, gl) {
 					let assets = Engine.assets;
 
-					gl.clearColor(0.0, 0.0, 0.0, 1.0);
+					gl.clearColor(0.0, 0.1, 0.5, 1.0);
 					gl.clear(gl.COLOR_BUFFER_BIT);
 
+					let tex = assets.images["ball"];
+					ren.setProjection(mat4.ortho(0, 640, 480, 0, -1, 1));
+					ren.setBlending("alpha");
 					ren.begin();
-					ren.sprite(0, 0);
-					ren.end(assets.images["ball"], Engine.ortho(0, 640, 480, 0, -1, 1));
+					for (let b of balls) {
+						ren.sprite(tex, b.x, b.y, 0.12, 0.12, 0.5, 0.5, b.rot);
+					}
+					ren.end();
 				},
-				update: function(dt) {
+				update: function(dt, im) {
+					for (let b of balls) {
+						let vx = (b.x - b.ox) * FRICTION,
+							vy = (b.y - b.oy) * FRICTION;
+						vy += GRAVITY;
+
+						b.ox = b.x;
+						b.oy = b.y;
+						b.x += vx;
+						b.y += vy;
+						b.rot += vx * 0.005 * dt;
+					}
+
+					for (let b of balls) {
+						let vx = (b.x - b.ox) * FRICTION,
+							vy = (b.y - b.oy) * FRICTION;
+
+						if (b.x > 640) {
+							b.x = 640;
+							b.ox = b.x + vx * BOUNCE;
+						} else if (b.x < 0) {
+							b.x = 0;
+							b.ox = b.x + vx * BOUNCE;
+						}
+						
+						if (b.y > 480) {
+							b.y = 480;
+							b.oy = b.y + vy * BOUNCE;
+						} else if (b.y < 0) {
+							b.y = 0;
+							b.oy = b.y + vy * BOUNCE;
+						}
+					}
+
+					if (im.mousePressed(0)) {
+						let pos = im.mousePosition();
+						let x = pos[0],
+							y = pos[1];
+						balls.push({
+							x: x,
+							y: y,
+							ox: x - Math.random() * 10.0,
+							oy: y - Math.random() * 10.0,
+							rot: 0.0
+						});
+					}
 				}
 			};
-
+			
 			Engine.create(640, 480, game);
 		</script>
 	</body>
