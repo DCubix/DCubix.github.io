@@ -1,4 +1,4 @@
-var Engine = Engine || {};
+var Fx = Fx || {};
 
 var mat4 = {
 	translation: function(x, y, z) {
@@ -122,9 +122,9 @@ var mat4 = {
 
 class Shader {
 	constructor(vsrc, fsrc) {
-		let gl = Engine.gl;
-		let vs = Engine.loadShader(vsrc, gl.VERTEX_SHADER);
-		let fs = Engine.loadShader(fsrc, gl.FRAGMENT_SHADER);
+		let gl = Fx.gl;
+		let vs = Fx.loadShader(vsrc, gl.VERTEX_SHADER);
+		let fs = Fx.loadShader(fsrc, gl.FRAGMENT_SHADER);
 		if (vs === null || fs === null)
 			return;
 
@@ -138,13 +138,13 @@ class Shader {
 	}
 
 	bind() {
-		let gl = Engine.gl;
+		let gl = Fx.gl;
 		gl.useProgram(this.program);
 	}
 
 	getUniformLocation(name) {
 		/** @type {WebGLRenderingContext} */
-		let gl = Engine.gl;
+		let gl = Fx.gl;
 
 		let ks = Object.keys(this.uniforms);
 		if (ks.indexOf(name) === -1) {
@@ -160,7 +160,7 @@ class Shader {
 
 	getAttribute(name) {
 		/** @type {WebGLRenderingContext} */
-		let gl = Engine.gl;
+		let gl = Fx.gl;
 
 		let ks = Object.keys(this.attributes);
 		if (ks.indexOf(name) === -1) {
@@ -176,43 +176,43 @@ class Shader {
 
 	seti(name, v) {
 		/** @type {WebGLRenderingContext} */
-		let gl = Engine.gl;
+		let gl = Fx.gl;
 		gl.uniform1i(this.getUniformLocation(name), v);
 	}
 
 	setf(name, v) {
 		/** @type {WebGLRenderingContext} */
-		let gl = Engine.gl;
+		let gl = Fx.gl;
 		gl.uniform1f(this.getUniformLocation(name), v);
 	}
 
 	set2f(name, x, y) {
 		/** @type {WebGLRenderingContext} */
-		let gl = Engine.gl;
+		let gl = Fx.gl;
 		gl.uniform2f(this.getUniformLocation(name), x, y);
 	}
 
 	set3f(name, x, y, z) {
 		/** @type {WebGLRenderingContext} */
-		let gl = Engine.gl;
+		let gl = Fx.gl;
 		gl.uniform3f(this.getUniformLocation(name), x, y, z);
 	}
 
 	set4f(name, x, y, z, w) {
 		/** @type {WebGLRenderingContext} */
-		let gl = Engine.gl;
+		let gl = Fx.gl;
 		gl.uniform4f(this.getUniformLocation(name), x, y, z, w);
 	}
 
 	set16f(name, vals) {
 		/** @type {WebGLRenderingContext} */
-		let gl = Engine.gl;
+		let gl = Fx.gl;
 		gl.uniformMatrix4fv(this.getUniformLocation(name), false, new Float32Array(vals));
 	}
 
 	destroy() {
 		/** @type {WebGLRenderingContext} */
-		let gl = Engine.gl;
+		let gl = Fx.gl;
 		gl.deleteProgram(this.program);
 	}
 }
@@ -230,18 +230,11 @@ class Texture {
 		height = height || 1;
 		data = data || null;
 
+		/** @type {WebGLRenderingContext} */
+		let gl = Fx.gl;
+
 		this.width = width;
 		this.height = height;
-
-		/** @type {WebGLRenderingContext} */
-		let gl = Engine.gl;
-
-		this.id = gl.createTexture();
-		gl.bindTexture(gl.TEXTURE_2D, this.id);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-		gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
 
 		let fmt = gl.RGBA;
 		switch (format.toLowerCase()) {
@@ -250,7 +243,23 @@ class Texture {
 			case "rgba": fmt = gl.RGBA; break;
 			case "depth": fmt = gl.DEPTH_COMPONENT; break;
 		}
-		gl.texImage2D(gl.TEXTURE_2D, 0, fmt, fmt, gl.UNSIGNED_BYTE, data);
+
+		this.id = gl.createTexture();
+		gl.bindTexture(gl.TEXTURE_2D, this.id);
+
+		if (data) {
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+			gl.texImage2D(gl.TEXTURE_2D, 0, fmt, fmt, gl.UNSIGNED_BYTE, data);
+		} else {
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+			gl.texImage2D(gl.TEXTURE_2D, 0, fmt, width, height, 0, fmt, gl.UNSIGNED_BYTE, null);
+		}
 
 		gl.bindTexture(gl.TEXTURE_2D, null);
 	}
@@ -262,20 +271,20 @@ class Texture {
 	bind(slot) {
 		slot = slot || 0;
 		/** @type {WebGLRenderingContext} */
-		let gl = Engine.gl;
+		let gl = Fx.gl;
 		gl.activeTexture(gl.TEXTURE0 + slot);
 		gl.bindTexture(gl.TEXTURE_2D, this.id);
 	}
 
 	unbind() {
 		/** @type {WebGLRenderingContext} */
-		let gl = Engine.gl;
+		let gl = Fx.gl;
 		gl.bindTexture(gl.TEXTURE_2D, null);
 	}
 
 	destroy() {
 		/** @type {WebGLRenderingContext} */
-		let gl = Engine.gl;
+		let gl = Fx.gl;
 		gl.deleteTexture(this.id);
 	}
 }
@@ -283,9 +292,10 @@ class Texture {
 class RenderTexture {
 	constructor(width, height, format) {
 		/** @type {WebGLRenderingContext} */
-		let gl = Engine.gl;
+		let gl = Fx.gl;
 
 		this.texture = new Texture(width, height, format, null);
+		this.texture.bind();
 
 		let att = gl.COLOR_ATTACHMENT0;
 		switch (format) {
@@ -297,14 +307,13 @@ class RenderTexture {
 		
 		this.id = gl.createFramebuffer();
 		gl.bindFramebuffer(gl.FRAMEBUFFER, this.id);
-		this.texture.bind();
 		gl.framebufferTexture2D(gl.FRAMEBUFFER, att, gl.TEXTURE_2D, this.texture.id, 0);
 		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 	}
 
 	bind() {
 		/** @type {WebGLRenderingContext} */
-		let gl = Engine.gl;
+		let gl = Fx.gl;
 
 		this.vp = gl.getParameter(gl.VIEWPORT);
 		gl.bindFramebuffer(gl.FRAMEBUFFER, this.id);
@@ -313,7 +322,7 @@ class RenderTexture {
 
 	unbind() {
 		/** @type {WebGLRenderingContext} */
-		let gl = Engine.gl;
+		let gl = Fx.gl;
 
 		gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 		gl.viewport(this.vp[0], this.vp[1], this.vp[2], this.vp[3]);
@@ -321,7 +330,7 @@ class RenderTexture {
 
 }
 
-Engine.DefaultVertexShader = `precision highp float;
+Fx.DefaultVertexShader = `precision highp float;
 attribute vec2 vPosition;
 attribute vec2 vTexCoord;
 attribute vec3 vTangent;
@@ -349,7 +358,7 @@ void main() {
 	oTBN = mat3(T, B, N);
 }`;
 
-Engine.FragmentShaderHeader = `precision mediump float;
+Fx.FragmentShaderHeader = `precision mediump float;
 varying vec4 oColor;
 varying vec2 oPosition;
 varying vec2 oTexCoord;
@@ -360,9 +369,9 @@ varying mat3 oTBN;
 class SpriteBatcher {
 	constructor() {
 		/** @type {WebGLRenderingContext} */
-		let gl = Engine.gl;
+		let gl = Fx.gl;
 
-		const fs = Engine.FragmentShaderHeader +
+		const fs = Fx.FragmentShaderHeader +
 `uniform sampler2D uTex;
 uniform float uTexEnable;
 void main() {
@@ -375,12 +384,12 @@ void main() {
 		this.vboSize = 0;
 		this.vertexCount = 0;
 
-		this.defaultShader = new Shader(Engine.DefaultVertexShader, fs);
+		this.defaultShader = new Shader(Fx.DefaultVertexShader, fs);
 		this.shader = this.defaultShader;
 		this.texture = null;
 		this.proj = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
 		this.view = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
-		this.blending = "opaque";
+		this.blending = "alpha";
 
 		this.vertices = [];
 
@@ -453,6 +462,7 @@ void main() {
 		let bry = (th - oy) * sy;
 
 		let c = Math.cos(rot), s = Math.sin(rot);
+		let tax = Math.cos(-rot), tay = Math.sin(-rot);
 
 		let x1 = c * tlx - s * tly,
 			y1 = s * tlx + c * tly,
@@ -469,12 +479,12 @@ void main() {
 		x4 += x; y4 += y;
 
 		this.vertices.push(...[
-			x1, y1,  uv[0],                 uv[1], c, s, 0.0,  ...color,
-			x2, y2,  uv[0] + uv[2],         uv[1], c, s, 0.0,  ...color,
-			x3, y3,  uv[0] + uv[2], uv[1] + uv[3], c, s, 0.0,  ...color,
-			x3, y3,  uv[0] + uv[2], uv[1] + uv[3], c, s, 0.0,  ...color,
-			x4, y4,  uv[0],         uv[1] + uv[3], c, s, 0.0,  ...color,
-			x1, y1,  uv[0],                 uv[1], c, s, 0.0,  ...color
+			x1, y1,  uv[0],                 uv[1], tax, tay, 0.0,  ...color,
+			x2, y2,  uv[0] + uv[2],         uv[1], tax, tay, 0.0,  ...color,
+			x3, y3,  uv[0] + uv[2], uv[1] + uv[3], tax, tay, 0.0,  ...color,
+			x3, y3,  uv[0] + uv[2], uv[1] + uv[3], tax, tay, 0.0,  ...color,
+			x4, y4,  uv[0],         uv[1] + uv[3], tax, tay, 0.0,  ...color,
+			x1, y1,  uv[0],                 uv[1], tax, tay, 0.0,  ...color
 		]);
 
 		this.vertexCount += 6;
@@ -519,7 +529,7 @@ void main() {
 			return;
 		}
 		/** @type {WebGLRenderingContext} */
-		let gl = Engine.gl;
+		let gl = Fx.gl;
 		gl.depthMask(false);
 		this.shader.bind();
 		this.drawing = true;
@@ -530,7 +540,7 @@ void main() {
 		if (this.texture) this.texture.bind(0);
 
 		/** @type {WebGLRenderingContext} */
-		let gl = Engine.gl;
+		let gl = Fx.gl;
 
 		clear = clear || true;
 
@@ -586,7 +596,7 @@ void main() {
 		if (this.vertices.length > 0) this.flush();
 
 		/** @type {WebGLRenderingContext} */
-		let gl = Engine.gl;
+		let gl = Fx.gl;
 		
 		this.texture = null;
 		this.drawing = false;
@@ -598,8 +608,7 @@ void main() {
 class AssetManager {
 	constructor() {
 		this.files = [];
-
-		this.images = {};
+		this.assets = {};
 	}
 
 	addImage(name, url) {
@@ -609,6 +618,8 @@ class AssetManager {
 			name: name
 		});
 	}
+
+	get(name) { return this.assets[name]; }
 
 	load(callback) {
 		let ok = 0, err = 0;
@@ -624,7 +635,7 @@ class AssetManager {
 			if (it.type.toLowerCase() === "image") {
 				let img = new Image();
 				img.onload = function() {
-					that.images[it.name] = new Texture(img.width, img.height, "rgba", img);
+					that.assets[it.name] = new Texture(img.width, img.height, "rgba", img);
 					ok++;
 					check();
 				};
@@ -710,40 +721,348 @@ class InputManager {
 	}
 }
 
-Engine.create = function(width, height, game) {
-	Engine.canvas = document.createElement("canvas");
-	Engine.canvas.width = width;
-	Engine.canvas.height = height;
+var ID = 0;
+class EntityWorld {
+	constructor() {
+		this.entities = [];
+		this.entityPool = [];
+		this.behaviors = {};
+
+		this.registerBehavior("sprite", {
+			render: function(e, sb) {
+				let ox = e.originX || 0;
+				let oy = e.originY || 0;
+				let sx = e.scaleX || 1;
+				let sy = e.scaleY || 1;
+				let x = e.x || 0;
+				let y = e.y || 0;
+				let rot = e.rotation || 0;
+				let col = e.color || [1, 1, 1, 1];
+				let uv = e.uv || [0, 0, 1, 1];
+				sb.sprite(e.diffuse, x, y, sx, sy, ox, oy, rot, col, uv);
+			}
+		});
+
+		this.registerBehavior("normal", {
+			render: function(e, sb) {
+				let ox = e.originX || 0;
+				let oy = e.originY || 0;
+				let sx = e.scaleX || 1;
+				let sy = e.scaleY || 1;
+				let x = e.x || 0;
+				let y = e.y || 0;
+				let rot = e.rotation || 0;
+				let uv = e.uv || [0, 0, 1, 1];
+				sb.sprite(e.normal, x, y, sx, sy, ox, oy, rot, [1, 1, 1, 1], uv);
+			}
+		});
+	}
+
+	create(types) {
+		types = types || [];
+		let ent;
+		if (this.entityPool.length === 0) {
+			ent = {
+				types: types,
+				dead: false,
+				life: null,
+				__init: false,
+			};
+		} else {
+			ent = this.entityPool.pop();
+			ent.types = types;
+			ent.__init = false;
+			ent.life = null;
+			ent.dead = false;
+		}
+		this.entities.push(ent);
+		return ent;
+	}
+
+	registerBehavior(name, behavior) {
+		if (!behavior) return;
+		this.behaviors[name] = behavior;
+	}
+
+	update(dt) {
+		for (let e of this.entities) {
+			if (!e) continue;
+			if (e.dead) continue;
+			for (let type of e.types) {
+				if (!this.behaviors[type]) continue;
+				if (!this.behaviors[type].update) continue;
+				if (!e.__init && this.behaviors[type].create) {
+					this.behaviors[type].create(e, this);
+				}
+				this.behaviors[type].update(e, dt, this);
+			}
+			e.__init = true;
+
+			if (e.life !== null) {
+				if (e.life > 0.0) {
+					e.life -= dt;
+				} else {
+					e.life = 0;
+					e.dead = true;
+				}
+			}
+		}
+
+		let len = this.entities.length;
+		while (len--) {
+			let e = this.entities[len];
+			if (e.dead) {
+				this.entityPool.push(e);
+				this.entities.splice(len, 1);
+			}
+		}
+	}
+
+	render(sb) {
+		for (let e of this.entities) {
+			if (!e) continue;
+			if (e.dead) continue;
+			for (let type of e.types) {
+				if (!this.behaviors[type]) continue;
+				if (!this.behaviors[type].render) continue;
+				this.behaviors[type].render(e, sb, this);
+			}
+		}
+	}
+
+	renderOnly(sb, types) {
+		if (!types) {
+			this.render(sb);
+			return;
+		}
+
+		for (let e of this.entities) {
+			if (!e) continue;
+			if (e.dead) continue;
+			for (let type of e.types) {
+				if (!this.behaviors[type]) continue;
+				if (!this.behaviors[type].render) continue;
+				if (types.indexOf(type) === -1) continue;
+				this.behaviors[type].render(e, sb, this);
+			}
+		}
+	}
+
+	each(types, callback) {
+		if (!types) return;
+		for (let e of this.entities) {
+			if (!e) continue;
+			if (e.dead) continue;
+			
+			let ck = [];
+			for (let type of e.types) {
+				if (types.indexOf(type) !== -1) {
+					ck.push(true);
+				}
+			}
+			if (ck.length === types.length && callback) {
+				callback(e);
+			}
+		}
+	}
+
+}
+
+class Renderer {
+	constructor(width, height) {
+		this.spriteBatcher = new SpriteBatcher();
+
+		const fs = Fx.FragmentShaderHeader + `
+uniform sampler2D uTex;
+uniform float uTexEnable;
+void main() {
+	vec3 n = vec3(0.0, 0.0, 1.0);
+	float a = 1.0;
+	if (uTexEnable > 0.5) {
+		vec4 nmap = texture2D(uTex, oTexCoord);
+		n = normalize(oTBN * (nmap.xyz * 2.0 - 1.0));
+		a = nmap.a;
+	}
+	gl_FragColor = vec4(n * 0.5 + 0.5, a);
+}
+`;
+		const lightFS = Fx.FragmentShaderHeader + `
+uniform sampler2D uTex;
+uniform sampler2D uNormal;
+
+uniform vec2 uLightPos;
+uniform float uLightRadius;
+uniform float uLightZ;
+
+uniform vec2 uResolution;
+
+float sqr2(float x) { return x * x; }
+
+void main() {
+	vec2 uv = gl_FragCoord.xy / uResolution;
+	vec4 D = texture2D(uTex, uv);
+	vec4 Nc = texture2D(uNormal, uv);
+
+	vec3 N = normalize(Nc.xyz * 2.0 - 1.0);
+	vec3 L = vec3((uLightPos - gl_FragCoord.xy) / uResolution, uLightZ);
+	L.x *= uResolution.x / uResolution.y;
+
+	float dist = length(L);
+	float att = clamp((1.0 - dist / uLightRadius), 0.0, 1.0);
+
+	L = normalize(L);
+
+	float nl = max(dot(N, L), 0.0);
+	vec3 diff = (oColor.rgb * oColor.a) * nl * att;
+
+	gl_FragColor = D * vec4(diff, 1.0);
+}
+`;
+
+		const ambientFS = Fx.FragmentShaderHeader + `
+uniform sampler2D uTex;
+uniform vec3 uAmbient;
+
+uniform vec2 uResolution;
+
+void main() {
+	vec2 uv = gl_FragCoord.xy / uResolution;
+	vec4 D = texture2D(uTex, uv);
+	gl_FragColor = D * vec4(uAmbient, 1.0);
+}
+`;
+
+		this.normalsShader = new Shader(Fx.DefaultVertexShader, fs);
+		this.ambientShader = new Shader(Fx.DefaultVertexShader, ambientFS);
+		this.lightingShader = new Shader(Fx.DefaultVertexShader, lightFS);
+		
+		this.colorBuffer = new RenderTexture(width, height, "rgba");
+		this.normalsBuffer = new RenderTexture(width, height, "rgb");
+
+		this.ambient = [0.08, 0.08, 0.12];
+	}
+
+	/**
+	 * @param {EntityWorld} world 
+	 */
+	render(world) {
+		/** @type {WebGLRenderingContext} */
+		let gl = Fx.gl;
+
+		this.spriteBatcher.setBlending("alpha");
+		this.spriteBatcher.setProjection(mat4.ortho(0, this.colorBuffer.texture.width, this.colorBuffer.texture.height, 0, -1, 1));
+
+		this.colorBuffer.bind();
+		this.colorPass(world);
+		this.colorBuffer.unbind();
+
+		this.normalsBuffer.bind();
+		this.normalsPass(world);
+		this.normalsBuffer.unbind();
+
+		gl.clearColor(0.0, 0.0, 0.0, 1.0);
+		gl.clear(gl.COLOR_BUFFER_BIT);
+
+		this.spriteBatcher.begin();
+		this.spriteBatcher.setShader(this.ambientShader);
+		this.ambientShader.set3f("uAmbient", this.ambient[0], this.ambient[1], this.ambient[2]);
+		this.ambientShader.set2f("uResolution", this.colorBuffer.texture.width, this.colorBuffer.texture.height);
+		this.spriteBatcher.sprite(this.colorBuffer.texture, 0, 0);
+		this.spriteBatcher.end();
+
+		this.normalsBuffer.texture.bind(1);
+
+		let sb = this.spriteBatcher;
+		let ls = this.lightingShader;
+		let that = this;
+
+		world.each(["light"], function(e) {
+			let x = e.x || 0;
+			let y = e.y || 0;
+			let rad = e.radius || 0.4;
+			let col = e.color || [1.0, 1.0, 1.0];
+			let intens = e.intensity || 1.0;
+			let z = e.z || 0.075;
+
+			sb.begin();
+			sb.setShader(ls);
+			ls.seti("uNormal", 1);
+			ls.set2f("uResolution", that.colorBuffer.texture.width, that.colorBuffer.texture.height);
+			sb.setBlending("add");
+
+			ls.set2f("uLightPos", x, y);
+			ls.setf("uLightRadius", rad);
+			ls.setf("uLightZ", z);
+			sb.disc(that.colorBuffer.texture, x, y, 512 * rad, [...col, intens]);
+			sb.end();
+		});
+		
+	}
+
+	/**
+	 * @param {EntityWorld} world 
+	 */
+	colorPass(world) {
+		/** @type {WebGLRenderingContext} */
+		let gl = Fx.gl;
+
+		gl.clearColor(0.0, 0.0, 0.0, 1.0);
+		gl.clear(gl.COLOR_BUFFER_BIT);
+
+		this.spriteBatcher.setShader(null);
+		this.spriteBatcher.begin();
+		world.renderOnly(this.spriteBatcher, ["sprite"]);
+		this.spriteBatcher.end();
+	}
+
+	/**
+	 * @param {EntityWorld} world 
+	 */
+	normalsPass(world) {
+		/** @type {WebGLRenderingContext} */
+		let gl = Fx.gl;
+
+		gl.clearColor(0.0, 0.0, 0.0, 0.0);
+		gl.clear(gl.COLOR_BUFFER_BIT);
+
+		this.spriteBatcher.setShader(this.normalsShader);
+		this.spriteBatcher.begin();
+		world.renderOnly(this.spriteBatcher, ["normal"]);
+		this.spriteBatcher.end();
+	}
+}
+
+Fx.create = function(width, height, preload) {
+	Fx.canvas = document.createElement("canvas");
+	Fx.canvas.width = width;
+	Fx.canvas.height = height;
 
 	/** @type {WebGLRenderingContext} */
-	let gl = Engine.gl = Engine.canvas.getContext("webgl");
+	let gl = Fx.gl = Fx.canvas.getContext("webgl");
 	if (gl === null) {
 		alert("Unable to initialize WebGL. Your browser or machine may not support it.");
 		return;
 	}
-	document.body.appendChild(Engine.canvas);
+	document.body.appendChild(Fx.canvas);
 
 	gl.viewport(0, 0, width, height);
 	gl.disable(gl.CULL_FACE);
 
-	Engine.renderer = new SpriteBatcher();
-	Engine.assets = new AssetManager();
-	Engine.game = game;
-	Engine.input = new InputManager(Engine.canvas);
-	
-	if (game.preload) game.preload(Engine.assets);
+	Fx.assets = new AssetManager();
+	Fx.input = new InputManager(Fx.canvas);
+	Fx.entities = new EntityWorld();
+	Fx.renderer = new Renderer(width, height);
 
-	Engine.assets.load(function() {
-		if (game.create) game.create();
-		Engine.run();
-	});
+	preload(Fx.assets);
+
+	Fx.assets.load(function() { console.log("OK"); Fx.run(); });
 };
 
 const timeStep = 1000 / 60.0;
 var lastTime = Date.now();
 var accum = 0;
-Engine.run = function() {
-	window.requestAnimationFrame(Engine.run);
+Fx.run = function() {
+	window.requestAnimationFrame(Fx.run);
 
 	let currTime = Date.now();
 	let delta = currTime - lastTime;
@@ -751,17 +1070,17 @@ Engine.run = function() {
 	accum += delta;
 
 	while (accum >= timeStep) {
-		if (Engine.game.update) Engine.game.update(timeStep, Engine.input);
+		Fx.entities.update(timeStep / 1000.0);
 		accum -= timeStep;
 	}
 
-	Engine.input.update();
+	Fx.input.update();
 
-	if (Engine.game.render) Engine.game.render(Engine.renderer, Engine.gl);
+	Fx.renderer.render(Fx.entities);
 };
 
-Engine.loadShader = function(src, type) {
-	let gl = Engine.gl;
+Fx.loadShader = function(src, type) {
+	let gl = Fx.gl;
 	let shader = gl.createShader(type);
 	gl.shaderSource(shader, src);
 	gl.compileShader(shader);

@@ -21,83 +21,103 @@
 
 		<script type="text/javascript" src="./fx.js"></script>
 		<script type="text/javascript">
-			let balls = [];
+			Fx.create(640, 480, function(ass) {
+				ass.addImage("ball", "./ball.png");
+				ass.addImage("balln", "./balln.png");
+			});
+
+			let ents = Fx.entities;
+			let im = Fx.input;
+			let assets = Fx.assets;
 
 			const GRAVITY = 0.65;
 			const BOUNCE = 0.9;
 			const FRICTION = 0.98;
 
-			let game = {
-				preload: function(assets) {
-					assets.addImage("ball", "./ball.png");
-				},
-				create: function() {
-				},
-				render: function(ren, gl) {
-					let assets = Engine.assets;
+			ents.create(["ball_spawner"]);
 
-					gl.clearColor(0.0, 0.1, 0.5, 1.0);
-					gl.clear(gl.COLOR_BUFFER_BIT);
+			let la = ents.create(["light"]);
+			la.x = 128;
+			la.y = 240;
+			la.color = [1.0, 0.2, 0.0];
+			la.radius = 2.0;
 
-					let tex = assets.images["ball"];
-					ren.setProjection(mat4.ortho(0, 640, 480, 0, -1, 1));
-					ren.setBlending("alpha");
-					ren.begin();
-					for (let b of balls) {
-						ren.sprite(tex, b.x, b.y, 0.12, 0.12, 0.5, 0.5, b.rot);
-					}
-					ren.end();
-				},
-				update: function(dt, im) {
-					for (let b of balls) {
-						let vx = (b.x - b.ox) * FRICTION,
-							vy = (b.y - b.oy) * FRICTION;
-						vy += GRAVITY;
+			let lb = ents.create(["light"]);
+			lb.x = 518;
+			lb.y = 240;
+			lb.color = [0.0, 0.2, 1.0];
+			lb.radius = 2.0;
 
-						b.ox = b.x;
-						b.oy = b.y;
-						b.x += vx;
-						b.y += vy;
-						b.rot += vx * 0.005 * dt;
-					}
+			// let lc = ents.create(["light"]);
+			// lb.x = 320;
+			// lb.y = 240;
+			// lb.color = [1.0, 0.9, 0.9];
+			// lb.radius = 2.0;
 
-					for (let b of balls) {
-						let vx = (b.x - b.ox) * FRICTION,
-							vy = (b.y - b.oy) * FRICTION;
-
-						if (b.x > 640) {
-							b.x = 640;
-							b.ox = b.x + vx * BOUNCE;
-						} else if (b.x < 0) {
-							b.x = 0;
-							b.ox = b.x + vx * BOUNCE;
-						}
-						
-						if (b.y > 480) {
-							b.y = 480;
-							b.oy = b.y + vy * BOUNCE;
-						} else if (b.y < 0) {
-							b.y = 0;
-							b.oy = b.y + vy * BOUNCE;
-						}
-					}
-
+			ents.registerBehavior("ball_spawner", {
+				update: function(dt) {
 					if (im.mousePressed(0)) {
+						let ent = ents.create(["sprite", "normal", "ball", "ball_collision"]);
 						let pos = im.mousePosition();
-						let x = pos[0],
-							y = pos[1];
-						balls.push({
-							x: x,
-							y: y,
-							ox: x - Math.random() * 10.0,
-							oy: y - Math.random() * 10.0,
-							rot: 0.0
-						});
+						ent.x = pos[0];
+						ent.y = pos[1];
+						ent.ox = ent.x - (Math.random() * 2.0 - 1.0) * 30.0;
+						ent.oy = ent.y - (Math.random() * 2.0 - 1.0) * 30.0;
+						ent.rotation = 0;
+						ent.diffuse = assets.get("ball");
+						ent.normal = assets.get("balln");
+
+						ent.originX = 0.5;
+						ent.originY = 0.5;
+						ent.scaleX = 0.25;
+						ent.scaleY = 0.25;
+						ent.color = [
+							0.2 + Math.random() * 0.8,
+							0.2 + Math.random() * 0.8,
+							0.2 + Math.random() * 0.8,
+							1.0
+						];
+						ent.life = 10.0;
 					}
 				}
-			};
-			
-			Engine.create(640, 480, game);
+			});
+
+			ents.registerBehavior("ball", {
+				update: function(b, dt) {
+					let vx = (b.x - b.ox) * FRICTION,
+						vy = (b.y - b.oy) * FRICTION;
+
+					b.ox = b.x;
+					b.oy = b.y;
+					b.x += vx;
+					b.y += (vy + GRAVITY);
+					b.rotation += vx * dt * Math.PI;
+				}
+			});
+
+			ents.registerBehavior("ball_collision", {
+				update: function(b, dt) {
+					let vx = (b.x - b.ox) * FRICTION,
+						vy = (b.y - b.oy) * FRICTION;
+
+					let sz = 256 * 0.125;
+					if (b.x > 640 - sz) {
+						b.x = 640 - sz;
+						b.ox = b.x + vx * BOUNCE;
+					} else if (b.x < sz) {
+						b.x = sz;
+						b.ox = b.x + vx * BOUNCE;
+					}
+					
+					if (b.y > 480 - sz) {
+						b.y = 480 - sz;
+						b.oy = b.y + vy * BOUNCE;
+					} else if (b.y < sz) {
+						b.y = sz;
+						b.oy = b.y + vy * BOUNCE;
+					}
+				}
+			});
 		</script>
 	</body>
 </html>
