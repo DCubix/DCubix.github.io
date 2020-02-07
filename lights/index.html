@@ -24,6 +24,7 @@
 			Fx.create(640, 480, function(ass) {
 				ass.addImage("ball", "./ball.png");
 				ass.addImage("balln", "./balln.png");
+				ass.addImage("checker", "./checker.jpg");
 			});
 
 			let ents = Fx.entities;
@@ -35,18 +36,25 @@
 			const FRICTION = 0.98;
 
 			ents.create(["ball_spawner"]);
-
+			ents.create(["background"]);
+			
 			let la = ents.create(["light"]);
-			la.x = 128;
-			la.y = 240;
+			la.x = 100;
+			la.y = 200;
+			la.z = 0.6;
 			la.color = [1.0, 0.2, 0.0];
-			la.radius = 2.0;
+			la.intensity = 4.0;
+			la.radius = 1.0;
+			la.shadow = true;
 
 			let lb = ents.create(["light"]);
-			lb.x = 518;
-			lb.y = 240;
+			lb.x = 500;
+			lb.y = 200;
+			lb.z = 0.6;
 			lb.color = [0.0, 0.2, 1.0];
-			lb.radius = 2.0;
+			lb.intensity = 4.0;
+			lb.shadow = true;
+			lb.radius = 1.0;
 
 			// let lc = ents.create(["light"]);
 			// lb.x = 320;
@@ -54,17 +62,32 @@
 			// lb.color = [1.0, 0.9, 0.9];
 			// lb.radius = 2.0;
 
+			ents.registerBehavior("background", {
+				create: function(e) {
+					e.diffuse = assets.get("checker");
+					e.uv = [0, 0, 10, 10];
+					e.scaleX = 0.5;
+					e.scaleY = 0.5;
+					e.types = ["sprite"];
+				}
+			});
+
+			let simulate = false;
 			ents.registerBehavior("ball_spawner", {
 				update: function(dt) {
+					if (im.mousePressed(2)) {
+						simulate = !simulate;
+					}
+
 					if (im.mousePressed(0)) {
-						let ent = ents.create(["sprite", "normal", "ball", "ball_collision"]);
+						let ent = ents.create(["sprite", "normal", "occluder", "ball", "ball_collision"]);
 						let pos = im.mousePosition();
 						ent.x = pos[0];
 						ent.y = pos[1];
-						ent.ox = ent.x - (Math.random() * 2.0 - 1.0) * 30.0;
-						ent.oy = ent.y - (Math.random() * 2.0 - 1.0) * 30.0;
+						ent.ox = ent.x - (Math.random() * 2.0 - 1.0) * 20.0;
+						ent.oy = ent.y - (Math.random() * 2.0 - 1.0) * 20.0;
 						ent.rotation = 0;
-						ent.diffuse = assets.get("ball");
+						ent.occluder = ent.diffuse = assets.get("ball");
 						ent.normal = assets.get("balln");
 
 						ent.originX = 0.5;
@@ -84,6 +107,7 @@
 
 			ents.registerBehavior("ball", {
 				update: function(b, dt) {
+					if (!simulate) return;
 					let vx = (b.x - b.ox) * FRICTION,
 						vy = (b.y - b.oy) * FRICTION;
 

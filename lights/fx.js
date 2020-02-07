@@ -363,7 +363,7 @@ varying vec4 oColor;
 varying vec2 oPosition;
 varying vec2 oTexCoord;
 varying mat3 oTBN;
-
+#line 1
 `;
 
 class SpriteBatcher {
@@ -451,8 +451,11 @@ void main() {
 			this.texture = texture;
 		}
 
-		let tw = texture.width * uv[2];
-		let th = texture.height * uv[3];
+		let imw = texture ? texture.width : 1;
+		let imh = texture ? texture.height : 1;
+
+		let tw = imw * uv[2];
+		let th = imh * uv[3];
 		ox *= tw;
 		oy *= th;
 
@@ -523,6 +526,28 @@ void main() {
 		}
 	}
 
+	quad(texture, x, y, radius, color) {
+		color = color || [1, 1, 1, 1];
+		if (color.length < 4) throw 'Invalid Color.';
+
+		if (!this.drawing) this.flush();
+		if (this.texture !== texture) {
+			this.flush();
+			this.texture = texture;
+		}
+
+		this.vertices.push(...[
+			-radius + x, -radius + y,  0.0, 0.0,  1.0, 0.0, 0.0,  ...color,
+			 radius + x, -radius + y,  1.0, 0.0,  1.0, 0.0, 0.0,  ...color,
+			 radius + x,  radius + y,  1.0, 1.0,  1.0, 0.0, 0.0,  ...color,
+			 radius + x,  radius + y,  1.0, 1.0,  1.0, 0.0, 0.0,  ...color,
+			-radius + x,  radius + y,  0.0, 1.0,  1.0, 0.0, 0.0,  ...color,
+			-radius + x, -radius + y,  0.0, 0.0,  1.0, 0.0, 0.0,  ...color,
+		]);
+
+		this.vertexCount += 6;
+	}
+
 	begin() {
 		if (this.drawing) {
 			console.error("Please end the drawing first.");
@@ -577,6 +602,7 @@ void main() {
 			case "opaque": gl.disable(gl.BLEND); break;
 			case "add": gl.blendFunc(gl.ONE, gl.ONE); break;
 			case "alpha": gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); break;
+			case "multiply": gl.blendFunc(gl.DST_COLOR, gl.ONE_MINUS_SRC_ALPHA); break;
 		}
 
 		gl.drawArrays(gl.TRIANGLES, 0, this.vertexCount);
@@ -756,6 +782,20 @@ class EntityWorld {
 				sb.sprite(e.normal, x, y, sx, sy, ox, oy, rot, [1, 1, 1, 1], uv);
 			}
 		});
+
+		this.registerBehavior("occluder", {
+			render: function(e, sb) {
+				let ox = e.originX || 0;
+				let oy = e.originY || 0;
+				let sx = e.scaleX || 1;
+				let sy = e.scaleY || 1;
+				let x = e.x || 0;
+				let y = e.y || 0;
+				let rot = e.rotation || 0;
+				let uv = e.uv || [0, 0, 1, 1];
+				sb.sprite(e.occluder, x, y, sx, sy, ox, oy, rot, [1, 1, 1, 1], uv);
+			}
+		});
 	}
 
 	create(types) {
@@ -790,11 +830,12 @@ class EntityWorld {
 			if (e.dead) continue;
 			for (let type of e.types) {
 				if (!this.behaviors[type]) continue;
-				if (!this.behaviors[type].update) continue;
 				if (!e.__init && this.behaviors[type].create) {
 					this.behaviors[type].create(e, this);
 				}
-				this.behaviors[type].update(e, dt, this);
+				if (this.behaviors[type].update) {
+					this.behaviors[type].update(e, dt, this);
+				}
 			}
 			e.__init = true;
 
@@ -887,8 +928,13 @@ void main() {
 }
 `;
 		const lightFS = Fx.FragmentShaderHeader + `
+#define PI 3.141592654
 uniform sampler2D uTex;
 uniform sampler2D uNormal;
+
+uniform sampler2D uOcclusion;
+uniform sampler2D uShadow;
+uniform float uShadowEnabled;
 
 uniform vec2 uLightPos;
 uniform float uLightRadius;
@@ -897,6 +943,39 @@ uniform float uLightZ;
 uniform vec2 uResolution;
 
 float sqr2(float x) { return x * x; }
+
+float sample(vec2 coord, float r) {
+	return step(r, texture2D(uShadow, coord).r);
+}
+
+float shadowSample(float lightSize) {
+	vec2 uv = oTexCoord;
+	vec2 norm = uv * 2.0 - 1.0;
+	norm *= uLightRadius;
+	float theta = atan(norm.y, norm.x);
+	float r = length(norm);
+	float coord = (theta / PI) * 0.5 + 0.5;
+
+	vec2 tc = vec2(coord, 0.0);
+
+	float center = sample(tc, r);
+	float blur = (1.0 / lightSize);// * smoothstep(0.0, 1.0, r);
+
+	float sum = 0.0;
+	sum += sample(vec2(tc.x - 4.0*blur, tc.y), r) * 0.05;
+	sum += sample(vec2(tc.x - 3.0*blur, tc.y), r) * 0.09;
+	sum += sample(vec2(tc.x - 2.0*blur, tc.y), r) * 0.12;
+	sum += sample(vec2(tc.x - 1.0*blur, tc.y), r) * 0.15;
+	
+	sum += center * 0.16;
+	
+	sum += sample(vec2(tc.x + 1.0*blur, tc.y), r) * 0.15;
+	sum += sample(vec2(tc.x + 2.0*blur, tc.y), r) * 0.12;
+	sum += sample(vec2(tc.x + 3.0*blur, tc.y), r) * 0.09;
+	sum += sample(vec2(tc.x + 4.0*blur, tc.y), r) * 0.05;
+
+	return sum * smoothstep(1.0, 0.0, r);
+}
 
 void main() {
 	vec2 uv = gl_FragCoord.xy / uResolution;
@@ -908,12 +987,20 @@ void main() {
 	L.x *= uResolution.x / uResolution.y;
 
 	float dist = length(L);
-	float att = clamp((1.0 - dist / uLightRadius), 0.0, 1.0);
+	float att = smoothstep(uLightRadius, 0.0, dist);
 
 	L = normalize(L);
 
 	float nl = max(dot(N, L), 0.0);
 	vec3 diff = (oColor.rgb * oColor.a) * nl * att;
+
+	if (uShadowEnabled > 0.5) {
+		vec2 luv = oTexCoord;
+		luv.y = 1.0 - luv.y;
+	
+		float O = 1.0 - texture2D(uOcclusion, luv).r;
+		diff *= shadowSample(1024.0) + O;
+	}
 
 	gl_FragColor = D * vec4(diff, 1.0);
 }
@@ -932,12 +1019,61 @@ void main() {
 }
 `;
 
+		const occluderFS = Fx.FragmentShaderHeader + `
+uniform sampler2D uTex;
+uniform float uTexEnable;
+
+void main() {
+	float a = 1.0;
+	if (uTexEnable > 0.5) {
+		a = 1.0 - texture2D(uTex, oTexCoord).a;
+	}
+	gl_FragColor = vec4(vec3(a), 1.0 - a);
+}
+		`;
+
+		const shadowFS = Fx.FragmentShaderHeader + `
+#define PI 3.141592654
+
+uniform sampler2D uTex;
+uniform float uTexEnable;
+
+uniform vec2 uResolution;
+
+void main() {
+	float thres = 0.75;
+	float maxDist = 1.0;
+
+	for (float y = 0.0; y < 99999.0; y += 1.0) {
+		if (y >= uResolution.y) break;
+
+		float dist = y / uResolution.y;
+
+		vec2 norm = vec2(oTexCoord.x, dist) * 2.0 - 1.0;
+		float theta = PI * 1.5 + norm.x * PI;
+		float r = norm.y * 0.5 + 0.5;
+
+		vec2 coord = vec2(-r * sin(theta), -r * cos(theta)) * 0.5 + 0.5;
+
+		float caster = texture2D(uTex, coord).r;
+		if (caster < thres) {
+			maxDist = min(maxDist, dist);
+		}
+	}
+	gl_FragColor = vec4(vec3(maxDist), 1.0);
+}
+		`;
+
 		this.normalsShader = new Shader(Fx.DefaultVertexShader, fs);
 		this.ambientShader = new Shader(Fx.DefaultVertexShader, ambientFS);
 		this.lightingShader = new Shader(Fx.DefaultVertexShader, lightFS);
-		
+		this.occlusionShader = new Shader(Fx.DefaultVertexShader, occluderFS);
+		this.shadowShader = new Shader(Fx.DefaultVertexShader, shadowFS);
+
 		this.colorBuffer = new RenderTexture(width, height, "rgba");
 		this.normalsBuffer = new RenderTexture(width, height, "rgb");
+		this.occlusionBuffer = new RenderTexture(1024, 1024, "rgb");
+		this.shadowBuffer = new RenderTexture(1024, 1, "rgb");
 
 		this.ambient = [0.08, 0.08, 0.12];
 	}
@@ -960,7 +1096,7 @@ void main() {
 		this.normalsPass(world);
 		this.normalsBuffer.unbind();
 
-		gl.clearColor(0.0, 0.0, 0.0, 1.0);
+		gl.clearColor(1.0, 1.0, 1.0, 1.0);
 		gl.clear(gl.COLOR_BUFFER_BIT);
 
 		this.spriteBatcher.begin();
@@ -974,6 +1110,8 @@ void main() {
 
 		let sb = this.spriteBatcher;
 		let ls = this.lightingShader;
+		let os = this.occlusionShader;
+		let ss = this.shadowShader;
 		let that = this;
 
 		world.each(["light"], function(e) {
@@ -984,18 +1122,75 @@ void main() {
 			let intens = e.intensity || 1.0;
 			let z = e.z || 0.075;
 
-			sb.begin();
-			sb.setShader(ls);
-			ls.seti("uNormal", 1);
-			ls.set2f("uResolution", that.colorBuffer.texture.width, that.colorBuffer.texture.height);
-			sb.setBlending("add");
+			rad = rad > 1.0 ? 1.0 : rad;
 
-			ls.set2f("uLightPos", x, y);
-			ls.setf("uLightRadius", rad);
-			ls.setf("uLightZ", z);
-			sb.disc(that.colorBuffer.texture, x, y, 512 * rad, [...col, intens]);
+			let shadowEnabled = e.shadow || false;
+			if (shadowEnabled) {
+				let vm = sb.view.slice();
+				let prj = sb.proj.slice();
+
+				that.occlusionBuffer.bind();
+					gl.clearColor(1.0, 1.0, 1.0, 1.0);
+					gl.clear(gl.COLOR_BUFFER_BIT);
+				
+					sb.setBlending("alpha");
+					sb.setProjection(mat4.ortho(0, that.occlusionBuffer.texture.width, that.occlusionBuffer.texture.height, 0, -1, 1))
+					sb.setView(mat4.translation(that.occlusionBuffer.texture.width / 2 - x, that.occlusionBuffer.texture.height / 2 - y, 0));
+					sb.begin();
+						sb.setShader(os);
+						world.renderOnly(sb, ["occluder"]);
+					sb.end();
+				that.occlusionBuffer.unbind();
+					
+				sb.setView([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]);
+				sb.setProjection(mat4.ortho(0, that.shadowBuffer.texture.width, 1, 0, -1, 1));
+				that.shadowBuffer.bind();
+				 	gl.clearColor(1.0, 1.0, 1.0, 1.0);
+				 	gl.clear(gl.COLOR_BUFFER_BIT);
+					
+				 	sb.begin();
+				 		sb.setShader(ss);
+				 		ss.set2f("uResolution", that.occlusionBuffer.texture.width, that.occlusionBuffer.texture.height);
+				 		sb.sprite(that.occlusionBuffer.texture, 0, 0);
+				 	sb.end();
+				that.shadowBuffer.unbind();
+				sb.setView(vm);
+				sb.setProjection(prj);
+			}
+
+			sb.setBlending("add");
+			sb.begin();
+				sb.setShader(ls);
+				if (shadowEnabled) {
+					that.shadowBuffer.texture.bind(2);
+					that.occlusionBuffer.texture.bind(3);
+					ls.seti("uShadow", 2);
+					ls.seti("uOcclusion", 3);
+					ls.setf("uShadowEnabled", 1.0);
+				} else {
+					ls.setf("uShadowEnabled", 0.0);
+				}
+
+				ls.seti("uNormal", 1);
+				ls.set2f("uResolution", that.colorBuffer.texture.width, that.colorBuffer.texture.height);
+
+				ls.set2f("uLightPos", x, y);
+				ls.setf("uLightRadius", rad);
+				ls.setf("uLightZ", z);
+				sb.quad(that.colorBuffer.texture, x, y, 512 * rad, [...col, intens]);
 			sb.end();
 		});
+		gl.bindTexture(gl.TEXTURE_2D, null);
+
+		this.spriteBatcher.setBlending("alpha");
+		this.spriteBatcher.setProjection(mat4.ortho(0, this.colorBuffer.texture.width, this.colorBuffer.texture.height, 0, -1, 1));
+		this.spriteBatcher.setView([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]);
+
+		// this.spriteBatcher.begin();
+		// this.spriteBatcher.setShader(null);
+		// this.spriteBatcher.sprite(this.occlusionBuffer.texture, 0, 0, 0.25, 0.25);
+		// this.spriteBatcher.sprite(this.shadowBuffer.texture, 0, 260, 0.25, 10.0);
+		// this.spriteBatcher.end();
 		
 	}
 
@@ -1022,7 +1217,7 @@ void main() {
 		/** @type {WebGLRenderingContext} */
 		let gl = Fx.gl;
 
-		gl.clearColor(0.0, 0.0, 0.0, 0.0);
+		gl.clearColor(0.0, 0.0, 1.0, 1.0);
 		gl.clear(gl.COLOR_BUFFER_BIT);
 
 		this.spriteBatcher.setShader(this.normalsShader);
@@ -1030,6 +1225,7 @@ void main() {
 		world.renderOnly(this.spriteBatcher, ["normal"]);
 		this.spriteBatcher.end();
 	}
+
 }
 
 Fx.create = function(width, height, preload) {
