@@ -376,7 +376,11 @@ class SpriteBatcher {
 uniform float uTexEnable;
 void main() {
 	vec4 color = oColor;
-	if (uTexEnable > 0.5) color *= texture2D(uTex, oTexCoord);
+	if (uTexEnable > 0.5) {
+		vec4 texCol = texture2D(uTex, oTexCoord);
+		color *= texCol;
+		color.rgb *= texCol.a;
+	}
 	gl_FragColor = color;
 }`;
 		
@@ -929,6 +933,7 @@ void main() {
 `;
 		const lightFS = Fx.FragmentShaderHeader + `
 #define PI 3.141592654
+#define HPI (PI * 0.5)
 uniform sampler2D uTex;
 uniform sampler2D uNormal;
 
@@ -936,8 +941,13 @@ uniform sampler2D uOcclusion;
 uniform sampler2D uShadow;
 uniform float uShadowEnabled;
 
+uniform sampler2D uShadingTex;
+uniform float uShadingTexEnabled;
+
 uniform vec2 uLightPos;
+uniform vec2 uLightDir;
 uniform float uLightRadius;
+uniform float uLightCutoff;
 uniform float uLightZ;
 
 uniform vec2 uResolution;
@@ -951,7 +961,7 @@ float sample(vec2 coord, float r) {
 float shadowSample(float lightSize) {
 	vec2 uv = oTexCoord;
 	vec2 norm = uv * 2.0 - 1.0;
-	norm *= uLightRadius;
+
 	float theta = atan(norm.y, norm.x);
 	float r = length(norm);
 	float coord = (theta / PI) * 0.5 + 0.5;
@@ -983,16 +993,32 @@ void main() {
 	vec4 Nc = texture2D(uNormal, uv);
 
 	vec3 N = normalize(Nc.xyz * 2.0 - 1.0);
-	vec3 L = vec3((uLightPos - gl_FragCoord.xy) / uResolution, uLightZ);
+
+	float zfactor = uLightCutoff > HPI ? 1.0 : uLightCutoff / HPI;
+	float z = uLightZ * zfactor;
+	vec3 L = vec3((uLightPos - gl_FragCoord.xy) / uResolution, z);
 	L.x *= uResolution.x / uResolution.y;
 
-	float dist = length(L);
-	float att = smoothstep(uLightRadius, 0.0, dist);
+	float dist = length(L) / uLightRadius;
+	float att = smoothstep(0.75, 0.0, dist);
 
 	L = normalize(L);
 
-	float nl = max(dot(N, L), 0.0);
-	vec3 diff = (oColor.rgb * oColor.a) * nl * att;
+	if (uLightCutoff < HPI) {
+		float s = dot(L, normalize(vec3(-uLightDir, 0.0)));
+		float c = cos(uLightCutoff);
+		att *= (1.0 - (1.0 - s) * 1.0 / (1.0 - c));
+	}
+
+	vec3 diff = (oColor.rgb * oColor.a);
+
+	if (uShadingTexEnabled > 0.5) {
+		float nl = (dot(N, L) * 0.5 + 0.5);
+		diff *= texture2D(uShadingTex, vec2(nl, 0.0)).rgb * att;
+	} else {
+		float nl = clamp(dot(N, L), 0.0, 1.0);
+		diff *= nl * att;
+	}
 
 	if (uShadowEnabled > 0.5) {
 		vec2 luv = oTexCoord;
@@ -1002,7 +1028,9 @@ void main() {
 		diff *= shadowSample(1024.0) + O;
 	}
 
-	gl_FragColor = D * vec4(diff, 1.0);
+	vec3 col = D.rgb * diff;
+	float alpha = D.a;
+	gl_FragColor = vec4(col, alpha);
 }
 `;
 
@@ -1075,7 +1103,13 @@ void main() {
 		this.occlusionBuffer = new RenderTexture(1024, 1024, "rgb");
 		this.shadowBuffer = new RenderTexture(1024, 1, "rgb");
 
-		this.ambient = [0.08, 0.08, 0.12];
+		this.ambient = [0.04, 0.04, 0.04];
+
+		/**
+		 * Use this texture to shade objects
+		 * it should look like this: https://docs.unity3d.com/uploads/Main/SurfaceShaderToonRampItself.png
+		 */
+		this.shadingTexture = null;
 	}
 
 	/**
@@ -1120,9 +1154,11 @@ void main() {
 			let rad = e.radius || 0.4;
 			let col = e.color || [1.0, 1.0, 1.0];
 			let intens = e.intensity || 1.0;
-			let z = e.z || 0.075;
+			let z = e.z || 0.065;
+			let cut = e.cutoff || Math.PI;
+			let rot = e.rotation || 0;
 
-			rad = rad > 1.0 ? 1.0 : rad;
+			let dirX = Math.cos(rot), dirY = Math.sin(rot);
 
 			let shadowEnabled = e.shadow || false;
 			if (shadowEnabled) {
@@ -1133,9 +1169,13 @@ void main() {
 					gl.clearColor(1.0, 1.0, 1.0, 1.0);
 					gl.clear(gl.COLOR_BUFFER_BIT);
 				
+					let lightSize = (that.occlusionBuffer.texture.width / 2) * rad;
+					let view = mat4.translation(-x, -y, 0);
+					let proj = mat4.ortho(-lightSize, lightSize, lightSize, -lightSize, -1, 1);
+
 					sb.setBlending("alpha");
-					sb.setProjection(mat4.ortho(0, that.occlusionBuffer.texture.width, that.occlusionBuffer.texture.height, 0, -1, 1))
-					sb.setView(mat4.translation(that.occlusionBuffer.texture.width / 2 - x, that.occlusionBuffer.texture.height / 2 - y, 0));
+					sb.setProjection(proj)
+					sb.setView(view);
 					sb.begin();
 						sb.setShader(os);
 						world.renderOnly(sb, ["occluder"]);
@@ -1158,8 +1198,8 @@ void main() {
 				sb.setProjection(prj);
 			}
 
-			sb.setBlending("add");
 			sb.begin();
+				sb.setBlending("add");
 				sb.setShader(ls);
 				if (shadowEnabled) {
 					that.shadowBuffer.texture.bind(2);
@@ -1174,24 +1214,33 @@ void main() {
 				ls.seti("uNormal", 1);
 				ls.set2f("uResolution", that.colorBuffer.texture.width, that.colorBuffer.texture.height);
 
-				ls.set2f("uLightPos", x, y);
+				if (that.shadingTexture) {
+					that.shadingTexture.bind(4);
+					ls.seti("uShadingTex", 4);
+					ls.setf("uShadingTexEnabled", 1.0);
+				} else {
+					ls.setf("uShadingTexEnabled", 0.0);
+				}
+
+				ls.set2f("uLightPos", x, that.colorBuffer.texture.height - y);
 				ls.setf("uLightRadius", rad);
+				ls.setf("uLightCutoff", cut);
+				ls.set2f("uLightDir", dirX, dirY);
 				ls.setf("uLightZ", z);
 				sb.quad(that.colorBuffer.texture, x, y, 512 * rad, [...col, intens]);
 			sb.end();
 		});
 		gl.bindTexture(gl.TEXTURE_2D, null);
 
-		this.spriteBatcher.setBlending("alpha");
 		this.spriteBatcher.setProjection(mat4.ortho(0, this.colorBuffer.texture.width, this.colorBuffer.texture.height, 0, -1, 1));
 		this.spriteBatcher.setView([1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1]);
 
 		// this.spriteBatcher.begin();
 		// this.spriteBatcher.setShader(null);
 		// this.spriteBatcher.sprite(this.occlusionBuffer.texture, 0, 0, 0.25, 0.25);
-		// this.spriteBatcher.sprite(this.shadowBuffer.texture, 0, 260, 0.25, 10.0);
+		// this.spriteBatcher.sprite(this.normalsBuffer.texture, 256, 0, 0.25, 0.25);
+		// this.spriteBatcher.sprite(this.colorBuffer.texture, 480, 0, 0.25, 0.25);
 		// this.spriteBatcher.end();
-		
 	}
 
 	/**
@@ -1217,7 +1266,7 @@ void main() {
 		/** @type {WebGLRenderingContext} */
 		let gl = Fx.gl;
 
-		gl.clearColor(0.0, 0.0, 1.0, 1.0);
+		gl.clearColor(0.5, 0.5, 1.0, 1.0);
 		gl.clear(gl.COLOR_BUFFER_BIT);
 
 		this.spriteBatcher.setShader(this.normalsShader);

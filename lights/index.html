@@ -17,14 +17,39 @@
 				align-items: center;
 				justify-content: center;
 			}
+			canvas {
+				box-shadow: 0 5px 10px rgba(0, 0, 0, 0.8);
+			}
 		</style>
 
 		<script type="text/javascript" src="./fx.js"></script>
 		<script type="text/javascript">
-			Fx.create(640, 480, function(ass) {
+			function HSVtoRGB(h, s, v) {
+				var r, g, b, i, f, p, q, t;
+				if (arguments.length === 1) {
+					s = h.s, v = h.v, h = h.h;
+				}
+				i = Math.floor(h * 6);
+				f = h * 6 - i;
+				p = v * (1 - s);
+				q = v * (1 - f * s);
+				t = v * (1 - (1 - f) * s);
+				switch (i % 6) {
+					case 0: r = v, g = t, b = p; break;
+					case 1: r = q, g = v, b = p; break;
+					case 2: r = p, g = v, b = t; break;
+					case 3: r = p, g = q, b = v; break;
+					case 4: r = t, g = p, b = v; break;
+					case 5: r = v, g = p, b = q; break;
+				}
+				return [r,g,b];
+			}
+
+			Fx.create(1280, 720, function(ass) {
 				ass.addImage("ball", "./ball.png");
-				ass.addImage("balln", "./balln.png");
+				ass.addImage("balln", "./ball_normal.png");
 				ass.addImage("checker", "./checker.jpg");
+				ass.addImage("shade", "./ramp0.png");
 			});
 
 			let ents = Fx.entities;
@@ -38,29 +63,24 @@
 			ents.create(["ball_spawner"]);
 			ents.create(["background"]);
 			
-			let la = ents.create(["light"]);
-			la.x = 100;
-			la.y = 200;
-			la.z = 0.6;
-			la.color = [1.0, 0.2, 0.0];
-			la.intensity = 4.0;
-			la.radius = 1.0;
-			la.shadow = true;
+			for (let i = 0; i < 6; i++) {
+				let fac = i / 6.0;
 
-			let lb = ents.create(["light"]);
-			lb.x = 500;
-			lb.y = 200;
-			lb.z = 0.6;
-			lb.color = [0.0, 0.2, 1.0];
-			lb.intensity = 4.0;
-			lb.shadow = true;
-			lb.radius = 1.0;
+				let a = (fac * 2.0 - 1.0) * Math.PI;
 
-			// let lc = ents.create(["light"]);
-			// lb.x = 320;
-			// lb.y = 240;
-			// lb.color = [1.0, 0.9, 0.9];
-			// lb.radius = 2.0;
+				let light = ents.create(["light"]);
+				light.x = 640 + Math.cos(a) * 540;
+				light.y = 360 + Math.sin(a) * 360;
+				light.color = HSVtoRGB(fac, 0.7, 1.0);
+				light.radius = 1.25;
+				light.intensity = 1.0;
+				light.cutoff = Math.PI * 0.35;
+				light.shadow = true;
+
+				let dx = 640 - light.x;
+				let dy = 360 - light.y;
+				light.rotation = -Math.atan2(dy, dx);
+			}
 
 			ents.registerBehavior("background", {
 				create: function(e) {
@@ -69,6 +89,9 @@
 					e.scaleX = 0.5;
 					e.scaleY = 0.5;
 					e.types = ["sprite"];
+
+					// Fx.renderer.shadingTexture = assets.get("shade");
+					Fx.renderer.ambient = [0, 0, 0]
 				}
 			});
 
@@ -94,12 +117,12 @@
 						ent.originY = 0.5;
 						ent.scaleX = 0.25;
 						ent.scaleY = 0.25;
-						ent.color = [
-							0.2 + Math.random() * 0.8,
-							0.2 + Math.random() * 0.8,
-							0.2 + Math.random() * 0.8,
-							1.0
-						];
+						// ent.color = [
+						// 	0.2 + Math.random() * 0.8,
+						// 	0.2 + Math.random() * 0.8,
+						// 	0.2 + Math.random() * 0.8,
+						// 	1.0
+						// ];
 						ent.life = 10.0;
 					}
 				}
@@ -125,16 +148,16 @@
 						vy = (b.y - b.oy) * FRICTION;
 
 					let sz = 256 * 0.125;
-					if (b.x > 640 - sz) {
-						b.x = 640 - sz;
+					if (b.x > 1280 - sz) {
+						b.x = 1280 - sz;
 						b.ox = b.x + vx * BOUNCE;
 					} else if (b.x < sz) {
 						b.x = sz;
 						b.ox = b.x + vx * BOUNCE;
 					}
 					
-					if (b.y > 480 - sz) {
-						b.y = 480 - sz;
+					if (b.y > 720 - sz) {
+						b.y = 720 - sz;
 						b.oy = b.y + vy * BOUNCE;
 					} else if (b.y < sz) {
 						b.y = sz;
