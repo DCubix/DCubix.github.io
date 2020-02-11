@@ -45,11 +45,18 @@
 				return [r,g,b];
 			}
 
-			Fx.create(1280, 720, function(ass) {
-				ass.addImage("ball", "./ball.png");
-				ass.addImage("balln", "./ball_normal.png");
-				ass.addImage("checker", "./checker.jpg");
-				ass.addImage("shade", "./ramp0.png");
+			Fx.create(1280, 720, {
+				preload: function() {
+					let ass = Fx.assets;
+					ass.addImage("ball", "./ball.png");
+					ass.addImage("balln", "./ball_normal.png");
+					ass.addImage("checker", "./checker.jpg");
+					ass.addImage("shade", "./ramp0.png");
+				},
+				init: function() {
+					// Fx.renderer.shadingTexture = assets.get("shade");
+					// Fx.renderer.ambient = [0.01, 0.01, 0];
+				}
 			});
 
 			let ents = Fx.entities;
@@ -63,15 +70,15 @@
 			ents.create(["ball_spawner"]);
 			ents.create(["background"]);
 			
-			for (let i = 0; i < 6; i++) {
-				let fac = i / 6.0;
+			for (let i = 0; i < 12; i++) {
+				let fac = i / 12.0;
 
 				let a = (fac * 2.0 - 1.0) * Math.PI;
 
 				let light = ents.create(["light"]);
 				light.x = 640 + Math.cos(a) * 540;
 				light.y = 360 + Math.sin(a) * 360;
-				light.color = HSVtoRGB(fac, 0.7, 1.0);
+				light.color = HSVtoRGB(fac, 1.0, 1.0);
 				light.radius = 1.25;
 				light.intensity = 1.0;
 				light.cutoff = Math.PI * 0.35;
@@ -89,9 +96,6 @@
 					e.scaleX = 0.5;
 					e.scaleY = 0.5;
 					e.types = ["sprite"];
-
-					// Fx.renderer.shadingTexture = assets.get("shade");
-					Fx.renderer.ambient = [0, 0, 0]
 				}
 			});
 

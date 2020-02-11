@@ -795,9 +795,10 @@ class EntityWorld {
 				let sy = e.scaleY || 1;
 				let x = e.x || 0;
 				let y = e.y || 0;
+				let off = e.offset || [0, 0];
 				let rot = e.rotation || 0;
 				let uv = e.uv || [0, 0, 1, 1];
-				sb.sprite(e.occluder, x, y, sx, sy, ox, oy, rot, [1, 1, 1, 1], uv);
+				sb.sprite(e.occluder, x + off[0], y + off[1], sx, sy, ox, oy, rot, [1, 1, 1, 1], uv);
 			}
 		});
 	}
@@ -1277,7 +1278,7 @@ void main() {
 
 }
 
-Fx.create = function(width, height, preload) {
+Fx.create = function(width, height, setup) {
 	Fx.canvas = document.createElement("canvas");
 	Fx.canvas.width = width;
 	Fx.canvas.height = height;
@@ -1298,9 +1299,14 @@ Fx.create = function(width, height, preload) {
 	Fx.entities = new EntityWorld();
 	Fx.renderer = new Renderer(width, height);
 
-	preload(Fx.assets);
+	if (setup && setup.preload) {
+		setup.preload();
+	}
 
-	Fx.assets.load(function() { console.log("OK"); Fx.run(); });
+	Fx.assets.load(function() {
+		if (setup && setup.init) setup.init();
+		Fx.run();
+	});
 };
 
 const timeStep = 1000 / 60.0;
