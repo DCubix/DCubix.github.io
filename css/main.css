@@ -173,9 +173,7 @@ pre code {
 
 /* Medium devices (landscape tablets, 768px and up) */
 @media only screen and (min-width: 768px) {
-	.container {
-		
-	}
+	
 }
 
 /* Large devices (laptops/desktops, 992px and up) */
@@ -196,7 +194,7 @@ pre code {
 	display: flex;
 	justify-content: flex-end;
 	perspective: 900px;
-	height: 120px;
+	height: 100px;
 	margin-bottom: 30px;
 }
 
@@ -231,8 +229,10 @@ pre code {
 
 .project {
 	display: flex;
+	align-items: center;
 }
 
 .project div {
 	flex: 1 1 auto;
+	margin-right: 12px;
 }
