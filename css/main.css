@@ -152,6 +152,7 @@ pre code {
 	box-shadow: 0 5px 16px rgba(0, 0, 0, 0.3);
 
 	margin-top: 120px;
+	margin-bottom: 120px;
 
 	display: flex;
 }
@@ -226,4 +227,12 @@ pre code {
 
 .link:hover {
 	border-bottom: 2px solid rgb(41, 85, 231);
+}
+
+.project {
+	display: flex;
+}
+
+.project div {
+	flex: 1 1 auto;
 }
