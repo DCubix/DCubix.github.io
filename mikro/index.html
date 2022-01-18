@@ -10,7 +10,7 @@
 			<div class="sidebar">
 				<h1 id="mikro">
 					<span class="span">
-						<img class="logo" src="./logo.png">
+						<img class="logo" src="./logo.png" style="width: 48px; height: auto;">
 					</span>
 					<span class="text"><i>Mikro API</i></span>
 				</h1>
@@ -23,18 +23,10 @@
 						<h1>Getting Started</h1>
 						<hr>
 						<p>
-							Mikro (pronounced <u>mee-cro</u>), is a really simple game platform/engine
-							intended for <u>simple</u> games.<br>
-							It uses Lua scripting for the games and it's implemented in C++ for the <i>full speed</i>.<br>
+							Mikro (pronounced <u>mee-cro</u>), is Lua-based a fantasy console.
 
 							It supports some basic shapes, sprites, animations, simple sounds and music, and everything is
-							limited to a 320x240 screen, upscaled to a 640x480 window. You can get it <a href="https://github.com/DCubix/Mikro">here</a>.<br>
-
-							<h3>Notes</h3>
-							<ul>
-								<li>To run a game, just drag your Lua script (or a cartridge file) to the executable.</li>
-								<li>Building a cartridge is as easy as <span class="code">./mik game.lua --dist</span>.</li>
-							</ul>
+							limited to a 320x240 screen, upscaled to a 640x480 window.
 
 							Here's a simple "Hello World program":
 						</p>
@@ -46,9 +38,9 @@ function _init()
 end
 
 function _draw()
-	mik.clear(128, 80, 20)
-	mik.line(0, 0, 100, 100,  255, 255, 0)
-	mik.circf(x, 100, 12,  0, 255, 255)
+	cls()
+	line(0, 0, 100, 100,  12)
+	circ(x, 100, 12,  15)
 end
 
 function _update(dt)
@@ -263,7 +255,7 @@ end
 						if (e.title) {
 							// add name
 							let name = document.createElement("a");
-							let id = e.title.replace(" ", "_");
+							let id = e.title.replace(" ", "_").toLowerCase();
 							name.href = "./#" + id;
 							name.id = id;
 							name.classList.add("stc");
