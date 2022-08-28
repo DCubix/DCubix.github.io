@@ -6,7 +6,7 @@ canvas.height = 512;
 let chars = [];
 let spaces = [];
 
-function generateChar(char, font, grow) {
+function generateChar(char, font, grow, smooth) {
     grow = grow || 1;
     
     let canvas = document.createElement('canvas');
@@ -17,10 +17,12 @@ function generateChar(char, font, grow) {
     
     const mt = ctx.measureText(char);
     const w = mt.width + 24;
-    const h = mt.fontBoundingBoxAscent + mt.fontBoundingBoxDescent + 24;
+    const h = (mt.fontBoundingBoxAscent ?
+        mt.fontBoundingBoxAscent + mt.fontBoundingBoxDescent :
+        mt.actualBoundingBoxAscent + mt.actualBoundingBoxDescent) + 24;
     
-    canvas.width = ~~w;
-    canvas.height = ~~h;
+    canvas.width = Math.floor(w);
+    canvas.height = Math.floor(h);
 
     if (canvas.width * canvas.height <= 0) {
         return null;
@@ -29,6 +31,7 @@ function generateChar(char, font, grow) {
     ctx.font = font;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
+    ctx.imageSmoothingEnabled = smooth || false;
 
     ctx.fillStyle = 'black';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -77,14 +80,15 @@ function generateChar(char, font, grow) {
     }
 
     let top = searchY(false) - grow;
-    let bottom = searchY(true) + grow;
+    let bottom = searchY(true) + grow * 2;
     let left = searchX(false) - grow;
-    let right = searchX(true) + grow;
+    let right = searchX(true) + grow * 2;
 
     let cropCanvas = document.createElement('canvas');
     let cropCtx = cropCanvas.getContext('2d');
-    cropCanvas.width = right - left;
-    cropCanvas.height = bottom - top;
+    cropCanvas.width = Math.floor(right - left);
+    cropCanvas.height = Math.floor(bottom - top);
+    cropCtx.imageSmoothingEnabled = smooth || false;
 
     cropCtx.drawImage(canvas, left, top, cropCanvas.width, cropCanvas.height, 0, 0, cropCanvas.width, cropCanvas.height);
 
@@ -95,8 +99,8 @@ function generateChar(char, font, grow) {
     return cropCanvas;
 }
 
-function createRect(img) {
-    let rec = { x: 0, y: 0, w: img.width, h: img.height, img: img };
+function createRect(img, mono) {
+    let rec = { x: 0, y: 0, w: !mono ? img.width : img.monoWidth, h: img.height, img: img };
 
     for (let i = spaces.length - 1; i >= 0; i--) {
         const space = spaces[i];
@@ -131,28 +135,32 @@ function createSpace(x, y, w, h) {
     spaces.push({ x: x, y: y, w: w, h: h });
 }
 
-function redraw() {
+function fit(srcWidth, srcHeight, maxWidth, maxHeight) {
+    var ratio = Math.min(maxWidth / srcWidth, maxHeight / srcHeight);
+    return { w: srcWidth * ratio, h: srcHeight * ratio };
+}
+
+function redraw(mono) {
     ctx.fillStyle = "black";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     for (let r of chars) {
-        ctx.drawImage(r.img, r.x, r.y);
+        let x = r.x, y = r.y;
+        let w = r.img.width, h = r.img.height;
+        if (mono) {
+            let sz = fit(r.img.width, r.img.height, r.img.monoWidth, r.img.height);
+            x = r.x + (r.img.monoWidth / 2 - sz.w / 2);
+        }
+        ctx.drawImage(r.img, x, y, w, h);
     }
 
     // draw visualizations
-    // ctx.fillStyle = 'rgba(0, 255, 0, 0.2)';
-    // for (let r of chars) {
-    //     ctx.beginPath();
-    //     ctx.rect(r.x, r.y, r.w, r.h);
-    //     ctx.fill();
-    // }
-
     // for (let r of chars) {
     //     let char = r.img;
-    //     ctx.fillStyle = 'rgba(255, 255, 0, 0.5)';
+    //     ctx.strokeStyle = 'cyan';
     //     ctx.beginPath();
     //     ctx.rect(r.x, r.y, char.advanceX, r.h);
-    //     ctx.fill();
+    //     ctx.stroke();
 
     //     ctx.strokeStyle = 'magenta';
     //     ctx.beginPath();
@@ -160,11 +168,18 @@ function redraw() {
     //     ctx.lineTo(r.x + r.w, r.y + (r.h - char.advanceY));
     //     ctx.stroke();
     // }
+
+    // ctx.strokeStyle = 'yellow';
+    // for (let r of chars) {
+    //     ctx.beginPath();
+    //     ctx.rect(r.x, r.y, r.w, r.h);
+    //     ctx.stroke();
+    // }
 }
 
 ctx.font = '36px user_font';
 
-function generateFont(charsetGenerator, grow) {
+function generateFont(charsetGenerator, grow, mono, smooth) {
     spaces = [];
     chars = [];
 
@@ -173,20 +188,32 @@ function generateFont(charsetGenerator, grow) {
     let alpha = charsetGenerator();
     let genrects = [];
     for (let i = 0; i < alpha.length; i++) {
-        const ms = generateChar(alpha[i], ctx.font, grow);
+        const ms = generateChar(alpha[i], ctx.font, grow, smooth);
         if (ms === null) continue;
         if (ms.width * ms.height <= 0) continue;
         genrects.push(ms);
+    }
+
+    if (mono) {
+        let maxW = 0;
+        for (let ms of genrects) {
+            maxW = Math.max(maxW, ms.width);
+        }
+
+        for (let ms of genrects) {
+            ms.monoWidth = maxW;
+            ms.advanceX = maxW;
+        }
     }
     
     // sort by h
     genrects.sort((a, b) => b.height - a.height);
 
     for (let rc of genrects) {
-        createRect(rc);
+        createRect(rc, mono);
     }
 
-    redraw();
+    redraw(mono);
 }
 
 function dom(id) {
@@ -214,12 +241,16 @@ async function regenerate() {
     const fMargin = parseInt(dom('fMargin').value);
     const fWidth = parseInt(dom('fWidth').value);
     const fHeight = parseInt(dom('fHeight').value);
+    const fMonospaced = dom('fMonospaced').checked;
+    const fSmooth = dom('fSmooth').checked;
 
     canvas.width = fWidth;
     canvas.height = fHeight;
     ctx.font = fSize + 'px user_font';
 
-    generateFont(asciiGenerator, fMargin);
+    ctx.imageSmoothingEnabled = fSmooth;
+
+    generateFont(asciiGenerator, fMargin, fMonospaced, fSmooth);
 }
 
 function generateJSONInfo() {
@@ -228,8 +259,8 @@ function generateJSONInfo() {
         jsonInfo.push({
             char: rec.img.character,
             charCode: rec.img.character.charCodeAt(0),
-            advanceX: rec.img.advanceX,
-            advanceY: rec.img.advanceY,
+            advance: rec.img.advanceX,
+            descent: rec.img.advanceY,
             bounds: [ rec.x, rec.y, rec.w, rec.h ],
             boundsNormalized: [ rec.x / canvas.width, rec.y / canvas.height, rec.w / canvas.width, rec.h / canvas.height ],
         })

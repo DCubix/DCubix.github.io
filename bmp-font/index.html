@@ -20,6 +20,16 @@
         .material-icons {
             vertical-align: middle;
         }
+
+        canvas {
+            image-rendering: optimizeSpeed;             /* STOP SMOOTHING, GIVE ME SPEED  */
+            image-rendering: -moz-crisp-edges;          /* Firefox                        */
+            image-rendering: -o-crisp-edges;            /* Opera                          */
+            image-rendering: -webkit-optimize-contrast; /* Chrome (and eventually Safari) */
+            image-rendering: pixelated; /* Chrome */
+            image-rendering: optimize-contrast;         /* CSS3 Proposed                  */
+            -ms-interpolation-mode: nearest-neighbor;   /* IE8+                           */
+        }
     </style>
 </head>
 <body>
@@ -27,7 +37,7 @@
         <h1 style="--mb:20px"><span class="material-icons" style="--size:48px">text_fields</span> Bitmap Font Generator</h1>
         <div style="--w:960px; --levitate:8; --p:12px; --br:12px; --d:flex; --bg:white">
             <div style="--bg:#e5e5e5; --br:4px; --of:hidden; --d:flex; --ai:center; --jc:center; --fx:1 1 auto; --p:24px;">
-                <canvas id="view" style="--levitate:5"></canvas>
+                <canvas id="view" style="--levitate:5; --w:100%"></canvas>
             </div>
             <div style="--w:240px; --ml:12px; --d:flex; --fd:column; --ai:center">
                 <fieldset>
@@ -40,8 +50,11 @@
                         <input id="fSize" type="number" min="8" max="144" value="40" />
                     </label>
                     <label>Character Margin (px)
-                        <input id="fMargin" type="number" min="1" max="8" value="2" />
+                        <input id="fMargin" type="number" min="0" max="10" value="1" />
                     </label>
+                    <input type="checkbox" id="fMonospaced" />
+                    <label for="fMonospaced">Monospaced</label>
+                    <hr/>
 
                     <div style="--d:flex; --fx:1 1 auto; --w:100%">
                         <label style="--fx:1 1 auto; --mr:8px">Image Width
@@ -51,6 +64,9 @@
                             <input id="fHeight" type="number" min="128" max="2048" value="512" />
                         </label>
                     </div>
+
+                    <input type="checkbox" id="fSmooth" checked />
+                    <label for="fSmooth">Smoothing</label>
 
                     <button style="--x:80; --w:100%" onclick="regenerate()"><span class="material-icons">settings</span> Generate</button>
                     <button class="white" style="--x:80; --w:100%" onclick="download()"><span class="material-icons">download</span> Download</button>
