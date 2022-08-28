@@ -21,6 +21,10 @@ function generateChar(char, font, grow) {
     
     canvas.width = ~~w;
     canvas.height = ~~h;
+
+    if (canvas.width * canvas.height <= 0) {
+        return null;
+    }
     
     ctx.font = font;
     ctx.textAlign = 'left';
@@ -170,6 +174,7 @@ function generateFont(charsetGenerator, grow) {
     let genrects = [];
     for (let i = 0; i < alpha.length; i++) {
         const ms = generateChar(alpha[i], ctx.font, grow);
+        if (ms === null) continue;
         if (ms.width * ms.height <= 0) continue;
         genrects.push(ms);
     }
