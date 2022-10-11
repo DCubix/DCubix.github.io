@@ -155,26 +155,26 @@ function redraw(mono) {
     }
 
     // draw visualizations
-    // for (let r of chars) {
-    //     let char = r.img;
-    //     ctx.strokeStyle = 'cyan';
-    //     ctx.beginPath();
-    //     ctx.rect(r.x, r.y, char.advanceX, r.h);
-    //     ctx.stroke();
+    for (let r of chars) {
+        let char = r.img;
+        ctx.strokeStyle = 'cyan';
+        ctx.beginPath();
+        ctx.rect(r.x, r.y, char.advanceX, r.h);
+        ctx.stroke();
 
-    //     ctx.strokeStyle = 'magenta';
-    //     ctx.beginPath();
-    //     ctx.moveTo(r.x, r.y + (r.h - char.advanceY));
-    //     ctx.lineTo(r.x + r.w, r.y + (r.h - char.advanceY));
-    //     ctx.stroke();
-    // }
+        ctx.strokeStyle = 'magenta';
+        ctx.beginPath();
+        ctx.moveTo(r.x, r.y + (r.h - char.advanceY));
+        ctx.lineTo(r.x + r.w, r.y + (r.h - char.advanceY));
+        ctx.stroke();
+    }
 
-    // ctx.strokeStyle = 'yellow';
-    // for (let r of chars) {
-    //     ctx.beginPath();
-    //     ctx.rect(r.x, r.y, r.w, r.h);
-    //     ctx.stroke();
-    // }
+    ctx.strokeStyle = 'yellow';
+    for (let r of chars) {
+        ctx.beginPath();
+        ctx.rect(r.x, r.y, r.w, r.h);
+        ctx.stroke();
+    }
 }
 
 ctx.font = '36px user_font';
