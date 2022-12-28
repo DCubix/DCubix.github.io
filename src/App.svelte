@@ -8,7 +8,7 @@
   <div class="flex">
     <ProfilePicture/>
     <div class="flex flex-col justify-center items-center md:ml-6 md:items-start">
-        <span class="m-0 mb-2 font-mono font-semibold text-5xl md:text-7xl">Diego Lopes</span>
+        <span class="m-0 mb-2 font-mono font-semibold text-4xl md:text-6xl">Diego Lopes</span>
         <span class="m-0 mb-3 font-normal text-2xl md:text-2xl text-white text-opacity-50">Software Developer</span>
         
         <ul class="flex gap-3">
