@@ -21,7 +21,7 @@ body, html {
   }
 
   .profile {
-    @apply w-44 h-44 relative overflow-hidden rounded-3xl;
+    @apply w-[120px] h-[120px] md:w-[170px] md:h-[170px] relative overflow-hidden rounded-3xl;
     background: linear-gradient(transparent 50%, rgba(0, 0, 0, 0.6)),
                 linear-gradient(var(--color-theme), var(--color-theme));
   }
@@ -37,16 +37,16 @@ body, html {
   }
 
   .grid-tiles {
-    @apply grid grid-cols-2 w-72 h-72 overflow-visible;
+    @apply grid grid-cols-2 w-full h-72 overflow-visible;
     grid-auto-rows: 1fr;
     gap: 6px;
   }
 
-  .grid-tiles:only-child {
-    grid-area: span 2 /  span 2;
+  .grid-tile:only-child {
+    grid-area: span 2 / span 2;
   }
 
-  .grid-tiles:first-child:nth-last-child(3) {
+  .grid-tile:first-child:nth-last-child(3) {
     grid-area: span 2;
   }
 
