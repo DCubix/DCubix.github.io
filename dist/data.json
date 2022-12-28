@@ -13,5 +13,12 @@
     "images": [
       "img/todo.gif"
     ]
+  },
+  {
+    "name": "Credit Card",
+    "description": "A credit card UI concept made with Flutter.",
+    "images": [
+      "https://github.com/DCubix/creditcard/raw/master/demo.gif"
+    ]
   }
 ]
