@@ -1,0 +1,17 @@
+[
+  {
+    "name": "Pizzapp",
+    "description": "Pizzeria app concept built using Flutter.",
+    "images": [
+      "img/pizzapp1.png",
+      "img/pizzapp2.png"
+    ]
+  },
+  {
+    "name": "Todo List",
+    "description": "A simple Todo List app made using Angular and TailwindCSS.",
+    "images": [
+      "img/todo.gif"
+    ]
+  }
+]

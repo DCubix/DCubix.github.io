@@ -1,0 +1,72 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-theme: #47cef0;
+  --color-theme-bg: #47cef0;
+}
+
+body, html {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: var(--color-theme-bg);
+}
+
+@layer components {
+  .text-color-theme {
+    @apply text-[color:var(--color-theme)];
+  }
+
+  .profile {
+    @apply w-44 h-44 relative overflow-hidden rounded-3xl;
+    background: linear-gradient(transparent 50%, rgba(0, 0, 0, 0.6)),
+                linear-gradient(var(--color-theme), var(--color-theme));
+  }
+
+  .profile::before {
+    content: '';
+    @apply absolute top-0 left-0 w-full h-full bg-no-repeat;
+    background-image: url('/src/assets/me.png');
+    background-position: center;
+    background-size: cover;
+    filter: drop-shadow(26px 18px 6px rgba(0, 0, 0, 0.5));
+    /* mix-blend-mode: multiply; */
+  }
+
+  .grid-tiles {
+    @apply grid grid-cols-2 w-72 h-72 overflow-visible;
+    grid-auto-rows: 1fr;
+    gap: 6px;
+  }
+
+  .grid-tiles:only-child {
+    grid-area: span 2 /  span 2;
+  }
+
+  .grid-tiles:first-child:nth-last-child(3) {
+    grid-area: span 2;
+  }
+
+  .grid-tiles .grid-tile {
+    @apply rounded-2xl cursor-pointer hover:scale-95 transition-transform;
+  }
+
+}
+
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background-color: rgba(0, 0, 0, 0.3);
+  border-radius: 12px;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.5);
+  border-radius: 12px;
+}
