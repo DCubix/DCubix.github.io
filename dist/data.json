@@ -1,24 +1,36 @@
 [
   {
+    "name": "Todo List",
+    "description": "A simple Todo List app made using Angular and TailwindCSS.",
+    "images": [
+      "img/todo.gif"
+    ],
+    "github": "https://github.com/DCubix/TodoAngular"
+  },
+  {
     "name": "Pizzapp",
     "description": "Pizzeria app concept built using Flutter.",
     "images": [
       "img/pizzapp1.png",
       "img/pizzapp2.png"
-    ]
-  },
-  {
-    "name": "Todo List",
-    "description": "A simple Todo List app made using Angular and TailwindCSS.",
-    "images": [
-      "img/todo.gif"
-    ]
+    ],
+    "github": "https://github.com/DCubix/pizzapp"
   },
   {
     "name": "Credit Card",
     "description": "A credit card UI concept made with Flutter.",
     "images": [
       "https://github.com/DCubix/creditcard/raw/master/demo.gif"
-    ]
+    ],
+    "github": "https://github.com/DCubix/creditcard"
+  },
+  {
+    "name": "GUI System and Node Editor",
+    "description": "A GUI system consisting of an event system and basic widgets and a Node-based editor for image processing. Made in C++, Windows API and OpenGL.",
+    "images": [
+      "img/gui1.gif",
+      "img/gui2.mp4"
+    ],
+    "github": "https://github.com/DCubix/CppProject"
   }
 ]
