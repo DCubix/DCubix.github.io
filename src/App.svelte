@@ -1,39 +1,10 @@
 <script lang="ts">
   import ProfilePicture from "./lib/components/ProfilePicture.svelte";
-  import { Facebook, Github, Linkedin, Mail, Play, PlayCircle } from 'lucide-svelte';
+  import { Github, Linkedin, Mail, Play, PlayCircle } from 'lucide-svelte';
   import data from '../public/data.json';
-  import { MetaTags } from 'svelte-meta-tags';
 
   data.reverse();
 </script>
-
-<MetaTags
-  title="Diego S. Lopes"
-  description="I'm a software developer from Brazil. Welcome to my portfolio."
-  canonical="https://dcubix.github.io/"
-  openGraph={{
-    url: "https://dcubix.github.io/",
-    title: "Diego S. Lopes",
-    description: "I'm a software developer from Brazil. Welcome to my portfolio.",
-    images: [
-      {
-        url: "https://dcubix.github.io/cover.png",
-        width: 1024,
-        height: 640,
-        alt: "Diego S. Lopes"
-      }
-    ],
-    site_name: "DiegoLopes"
-  }}
-  twitter={{
-    site: "https://dcubix.github.io/",
-    cardType: "summary_large_image",
-    title: "Diego S. Lopes",
-    description: "I'm a software developer from Brazil. Welcome to my portfolio.",
-    image: "https://dcubix.github.io/cover.png",
-    imageAlt: "Diego S. Lopes"
-  }}
-/>
 
 <main class="w-full md:w-[90%] lg:w-3/4 xl:w-2/3 2xl:w-5/12 m-auto p-3 py-5 md:p-12">
   <div class="flex">
