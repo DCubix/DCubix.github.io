@@ -1,5 +1,21 @@
 [
   {
+    "name": "Node-based Software Synthesizer",
+    "description": "An advanced synthesizer written in C++ using SDL_audio. You could assemble your own node graph combining waveforms to produce a variety of sounds.",
+    "images": [
+      "img/synth.png",
+      "img/GaGSFBTuWn.mp4"
+    ]
+  },
+  {
+    "name": "3D Rendering Engine",
+    "description": "A non-physically-based 3D rendering engine written in C++ using OpenGL 3.3. The engine supported shadow mapping, normal mapping and post-processing effects.",
+    "images": [
+      "img/shadow_monkeys.png",
+      "img/boWGliEx6K.mp4"
+    ]
+  },
+  {
     "name": "Todo List",
     "description": "A simple Todo List app made using Angular and TailwindCSS.",
     "images": [
