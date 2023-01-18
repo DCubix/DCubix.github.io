@@ -17,7 +17,7 @@
     description: "I'm a software developer from Brazil. Welcome to my portfolio.",
     images: [
       {
-        url: "https://dcubix.github.io/img/cover.png",
+        url: "https://dcubix.github.io/cover.png",
         width: 1024,
         height: 640,
         alt: "Diego S. Lopes"
@@ -30,7 +30,7 @@
     cardType: "summary_large_image",
     title: "Diego S. Lopes",
     description: "I'm a software developer from Brazil. Welcome to my portfolio.",
-    image: "https://dcubix.github.io/img/cover.png",
+    image: "https://dcubix.github.io/cover.png",
     imageAlt: "Diego S. Lopes"
   }}
 />
