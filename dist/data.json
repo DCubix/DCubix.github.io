@@ -1,7 +1,8 @@
 [
   {
     "name": "Node-based Software Synthesizer",
-    "description": "An advanced synthesizer written in C++ using SDL_audio. You could assemble your own node graph combining waveforms to produce a variety of sounds.",
+    "description": "This program was built with the intention to be a modular FM synthesizer. It was part of my audio synthesis and DSP studies and the main goal was to create a synth that could be controlled via MIDI and was modular. The node-based graph approach was very convenient since I can have multiple operators (node types) that modify a sound wave. As you can see in the video, there was an attempt to recreate the Yamaha DX7 Rhodes sound, which it did not manage to recreate but the result still was very good.\nThe main challenges in this project were performance-related issues. I basically had to use custom containers out of the STL since the STL containers were very slow for audio processing, and as you can see in the video, it still got some crackling into the audio output. I couldn't fix this but I was pretty happy with the results.",
+    "tech": [ "C++", "SDL" ],
     "images": [
       "img/synth.png",
       "img/GaGSFBTuWn.mp4"
@@ -9,7 +10,8 @@
   },
   {
     "name": "3D Rendering Engine",
-    "description": "A non-physically-based 3D rendering engine written in C++ using OpenGL 3.3. The engine supported shadow mapping, normal mapping and post-processing effects.",
+    "description": "This is a non-physically-based rendering engine I created in an effort to solidify my C++ and OpenGL knowledge. It can do soft shadows, post processing, instancing and deferred rendering. Computer graphics is an area which I love the most, and this is why I made this project.\nMost of the challenges I faced were code design-related, how things should be strutured, what would be the best way to do something, etc.",
+    "tech": [ "C++", "OpenGL" ],
     "images": [
       "img/shadow_monkeys.png",
       "img/boWGliEx6K.mp4"
@@ -17,7 +19,8 @@
   },
   {
     "name": "Todo List",
-    "description": "A simple Todo List app made using Angular and TailwindCSS.",
+    "description": "I wanted to give Angular a try, and what else could I build with it? It's a simple todo-list app using Angular and TailwindCSS. You can create a todo list and it will remain saved on your browser's local storage.\nMy main challenge was of course learning Angular. It was a slightly steep learning curve but it's quite nice to use, although it's really just meant for bigger projects.\nThe project took me 4 days to complete.",
+    "tech": [ "Angular", "TypeScript", "TailwindCSS" ],
     "images": [
       "img/todo.gif"
     ],
@@ -25,7 +28,8 @@
   },
   {
     "name": "Pizzapp",
-    "description": "Pizzeria app concept built using Flutter.",
+    "description": "An app concept for pizzerias that allows the customer to customize their own pizza. You can choose how your pizza will get sliced, and choose how your flavors will get distributed on each slice or span of slices.\nThe 3D transformations were a major problem here (see GitHub repo for a GIF), since the pizza had to rotate in 3D. This was solved by using clever transformation tricks, and the end result looks convincing enough.\nThe entire project took me about 3 days to complete.",
+    "tech": [ "Flutter" ],
     "images": [
       "img/pizzapp1.png",
       "img/pizzapp2.png"
@@ -34,7 +38,8 @@
   },
   {
     "name": "Credit Card",
-    "description": "A credit card UI concept made with Flutter.",
+    "description": "This is a 3D credit card UI made to test some fake 3D transformations in Flutter. It helped me understand how Widget transforms work in Flutter and how to take advantage of them to perform pseudo-3D transformations.\nAnimations and that fancy reflection effect were a rather big challenge for me to pull out.\nThe project took me about 2 days to complete.",
+    "tech": [ "Flutter" ],
     "images": [
       "https://github.com/DCubix/creditcard/raw/master/demo.gif"
     ],
@@ -42,9 +47,11 @@
   },
   {
     "name": "GUI System and Node Editor",
-    "description": "A GUI system consisting of an event system and basic widgets and a Node-based editor for image processing. Made in C++, Windows API and OpenGL.",
+    "description": "This project started as a simple GUI library using the Windows API and an OpenGL context but it evolved into a complete GUI system and a Node Editor app as a test application. The node editor generates procedural textures using compute shaders and shader generation.\nThis project helped me grasp the concept of smart pointers a little better and when to use them.\nThe main challenges in this project were the event handling and component nesting since I needed to propagate the events down into the component tree.\nThe project is still in development since early January 2023.",
+    "tech": [ "C++", "OpenGL" ],
     "images": [
       "img/gui1.gif",
+      "img/gui3.gif",
       "img/gui2.mp4"
     ],
     "github": "https://github.com/DCubix/CppProject"
