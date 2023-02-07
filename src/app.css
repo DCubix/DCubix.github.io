@@ -15,7 +15,23 @@ body, html {
   background: var(--color-theme-bg);
 }
 
+@layer utilities {
+  .grid-fit-cols {
+    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+    grid-template-rows: 1fr;
+  }
+
+  .grid-fit-rows {
+    grid-template-rows: repeat(auto-fit, minmax(0, 1fr));
+    grid-template-columns: 1fr;
+  }
+}
+
 @layer components {
+  .tech {
+    @apply bg-[color:var(--color-theme)] px-1 py-0.5 rounded-md mx-0.5 text-sm first:ml-0 last:mr-0;
+  }
+
   .text-color-theme {
     @apply text-[color:var(--color-theme)];
   }
@@ -37,21 +53,19 @@ body, html {
   }
 
   .grid-tiles {
-    @apply grid grid-cols-2 w-full h-72 overflow-visible;
-    grid-auto-rows: 1fr;
-    gap: 6px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: repeat(auto-fit, 260px);
+    grid-auto-flow: dense;
+    gap: 0.4rem;
   }
 
   .grid-tile:only-child {
     grid-area: span 2 / span 2;
   }
 
-  .grid-tile:first-child:nth-last-child(3) {
-    grid-area: span 2;
-  }
-
   .grid-tiles .grid-tile {
-    @apply rounded-2xl cursor-pointer hover:scale-95 transition-transform;
+    @apply rounded-2xl cursor-pointer hover:scale-95 transition-transform mr-1 flex-grow;
   }
 
   .flatbutton {
