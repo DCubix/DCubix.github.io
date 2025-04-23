@@ -54,7 +54,7 @@
     </div>
     <!-- Marked -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script type="text/javascript"></script>
+    <script type="text/javascript">
         // fetch current language
         let lang = navigator.language || navigator.userLanguage;
         lang = lang.split('-')[0];
@@ -74,6 +74,7 @@
             .catch(error => {
                 console.error('Error fetching privacy policy:', error);
             });
+    </script>
     </script>
 </body>
 </html>
