@@ -39,7 +39,3 @@ Podemos atualizar esta Política de Privacidade para refletir mudanças na funci
 ### 8. Contato
 
 Se você tiver perguntas ou preocupações sobre esta Política de Privacidade, entre em contato pelo e-mail diego.lopes@teknetsys.com.br.
-
----
-
-*Esta Política de Privacidade foi gerada em 23 de abril de 2025.*
