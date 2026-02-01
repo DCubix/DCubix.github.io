@@ -39,7 +39,3 @@ We may update this Privacy Policy to reflect changes in App functionality. We wi
 ### 8. Contact Us
 
 If you have questions or concerns about this Privacy Policy, please contact us at diego.lopes@teknetsys.com.br.
-
----
-
-*This Privacy Policy was generated on April 23, 2025.*
